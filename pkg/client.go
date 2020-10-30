@@ -1,6 +1,8 @@
 package client
 
 import (
+	uniswapfactory "github.com/524119574/go_defi/pkg/uniswapfactory"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -26,9 +28,9 @@ const (
 )
 
 var  coinToAddressMap = map[coinType]string{
-		DAI: "xyz",
-		USDC: "abc",
-		ETH: "123",
+		DAI: "0x6b175474e89094c44da98b954eedeac495271d0f",
+		USDC: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+		ETH: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
 	}
 
 // Client is the new interface
@@ -47,7 +49,7 @@ func NewClient(net netType, content string, passphrase string) (*ActualClient, e
 		return nil, err
 	}
 	
-	c.connection = conn
+	c.conn = conn
 	return c, nil
 }
 
@@ -56,7 +58,7 @@ type ActualClient struct {
 	net netType
 	content string
 	passphrase string
-	connection *ethclient.Client
+	conn *ethclient.Client
 }
 
 // UniswapClient struct
@@ -64,6 +66,7 @@ type UniswapClient struct {
 	net netType
 	content string
 	passphrase string
+	uniswap *uniswapfactory.Uniswap
 }
 
 // Uniswap returns a uniswap client
@@ -72,6 +75,12 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 	uniClient.net = c.net
 	uniClient.content = c.content
 	uniClient.passphrase = c.passphrase
+	uniswap, err := uniswapfactory.NewUniswap(common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"), c.conn)
+	if err != nil {
+		return nil
+	}
+	
+	uniClient.uniswap = uniswap
 	return uniClient
 }
 
