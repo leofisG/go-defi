@@ -1,8 +1,9 @@
 package client
 
 import (
-	"testing"
 	"fmt"
+	"log"
+	"testing"
 )
 
 // Test inbox contract gets deployed correctly
@@ -18,6 +19,11 @@ func TestNewClient(t *testing.T) {
 		t.Errorf("Empty client.")
 	}
 
-	fmt.Print("Test End.")
+	tx, err := client.Uniswap().Swap(1000, DAI, ETH)
+	if err != nil {
+		log.Fatalf("Failed to swap in Uniswap: %v", err)
+	}
+
+	fmt.Print("Test End.", tx)
 
 }
