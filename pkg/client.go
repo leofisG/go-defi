@@ -1,7 +1,11 @@
 package client
 
 import (
-	uniswapfactory "github.com/524119574/go_defi/pkg/uniswapfactory"
+	"fmt"
+	"math/big"
+
+	"github.com/524119574/go_defi/pkg/uniswap"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -27,10 +31,10 @@ const (
 	ETH coinType = iota
 )
 
-var  coinToAddressMap = map[coinType]string{
-		DAI: "0x6b175474e89094c44da98b954eedeac495271d0f",
-		USDC: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-		ETH: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+var  coinToAddressMap = map[coinType]common.Address{
+		DAI: common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
+		USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
+		ETH: common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
 	}
 
 // Client is the new interface
@@ -39,11 +43,12 @@ type Client interface {
 }
 
 // NewClient Create a new client
-func NewClient(net netType, content string, passphrase string) (*ActualClient, error) {
+func NewClient(net netType, content string, passphrase string, opts *bind.TransactOpts) (*ActualClient, error) {
 	c := new(ActualClient)
 	c.net = net
 	c.content = content
 	c.passphrase = passphrase
+	c.opts = opts
 	conn, err := ethclient.Dial("https://mainnet.infura.io/v3/1c3ca57d49fa4db8aff58645c99fcc30")
 	if err != nil {
 		return nil, err
@@ -58,6 +63,7 @@ type ActualClient struct {
 	net netType
 	content string
 	passphrase string
+	opts *bind.TransactOpts
 	conn *ethclient.Client
 }
 
@@ -66,7 +72,9 @@ type UniswapClient struct {
 	net netType
 	content string
 	passphrase string
-	uniswap *uniswapfactory.Uniswap
+	opts *bind.TransactOpts
+	conn *ethclient.Client
+	uniswap *uniswap.Uniswap
 }
 
 // Uniswap returns a uniswap client
@@ -75,7 +83,11 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 	uniClient.net = c.net
 	uniClient.content = c.content
 	uniClient.passphrase = c.passphrase
-	uniswap, err := uniswapfactory.NewUniswap(common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"), c.conn)
+	uniClient.conn = c.conn
+	uniClient.opts = c.opts
+	// UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
+	uniswap, err := uniswap.NewUniswap(
+		common.HexToAddress("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"), c.conn)
 	if err != nil {
 		return nil
 	}
@@ -88,6 +100,15 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 type TxHash string
 
 // Swap in the Uniswap Exchange.
-func (c *UniswapClient) Swap(size int, baseCurrency coinType, quoteCurrency coinType) (TxHash, error) {
+func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) (TxHash, error) {
+	path := []common.Address{coinToAddressMap[quoteCurrency], coinToAddressMap[ETH], coinToAddressMap[baseCurrency]}
+	tx, err := c.uniswap.SwapExactTokensForTokens(
+		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
+		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
+		c.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
+	if err != nil {
+		return "", err
+	}
+	fmt.Print(tx)
 	return "default_hash", nil
 }
