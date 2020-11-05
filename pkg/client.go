@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/524119574/go_defi/pkg/compound/cETH"
 	"github.com/524119574/go_defi/pkg/uniswap"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jinzhu/copier"
 )
 
 
 type netType int
 
 const (
-	// MAIN_NET the main Ethereum network
-	MAIN_NET netType = iota
-	// TEST_NET the test net.
-	TEST_NET netType = iota
+	// MainNet the main Ethereum network
+	MainNet netType = iota
+	// TestNet the test net.
+	TestNet netType = iota
 )
 
 type coinType int
@@ -29,6 +31,14 @@ const (
 	USDC coinType = iota
 	// ETH weiwu
 	ETH coinType = iota
+)
+
+const (
+	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
+	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	// Compound
+	cETHAddr string = "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"
+
 )
 
 var  coinToAddressMap = map[coinType]common.Address{
@@ -43,13 +53,13 @@ type Client interface {
 }
 
 // NewClient Create a new client
-func NewClient(net netType, content string, passphrase string, opts *bind.TransactOpts) (*ActualClient, error) {
+func NewClient(net netType, content string, passphrase string, opts *bind.TransactOpts, addr string) (*ActualClient, error) {
 	c := new(ActualClient)
 	c.net = net
 	c.content = content
 	c.passphrase = passphrase
 	c.opts = opts
-	conn, err := ethclient.Dial("https://mainnet.infura.io/v3/1c3ca57d49fa4db8aff58645c99fcc30")
+	conn, err := ethclient.Dial(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +76,9 @@ type ActualClient struct {
 	opts *bind.TransactOpts
 	conn *ethclient.Client
 }
+
+
+// Uniswap---------------------------------------------------------------------
 
 // UniswapClient struct
 type UniswapClient struct {
@@ -85,9 +98,7 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 	uniClient.passphrase = c.passphrase
 	uniClient.conn = c.conn
 	uniClient.opts = c.opts
-	// UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
-	uniswap, err := uniswap.NewUniswap(
-		common.HexToAddress("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"), c.conn)
+	uniswap, err := uniswap.NewUniswap(common.HexToAddress(uniswapAddr), c.conn)
 	if err != nil {
 		return nil
 	}
@@ -112,3 +123,58 @@ func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency co
 	fmt.Print(tx)
 	return "default_hash", nil
 }
+
+// Compound---------------------------------------------------------------------
+
+// CompoundClient is an instance of Compound protocol.
+type CompoundClient struct {
+	client *ActualClient
+}
+
+// Compound returns a compound client
+func (c *ActualClient) Compound() *CompoundClient {
+	compoundClient := new(CompoundClient)
+	compoundClient.client = c
+
+	return compoundClient
+}
+
+// Supply supplies token to compound
+func (c *CompoundClient) Supply(amount int64, coin coinType) error {
+	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
+	if err != nil {
+		fmt.Printf("Error getting cETH contract")
+	}
+	
+	// We deep copy the struct here to avoid changing the initial Value.
+	supplyOpts := bind.TransactOpts{}
+	copier.Copy(&supplyOpts, c.client.opts)
+	supplyOpts.Value = big.NewInt(amount)
+	supplyOpts.GasLimit = 150000
+	supplyOpts.GasPrice = big.NewInt(20000000000)
+	_, err = cETHContract.Mint(&supplyOpts)
+	if err != nil {
+		fmt.Printf("Error mint ctoken: %v", err)
+		return err
+	}
+	return nil
+}
+
+// BalanceOf return the balance of given cToken
+func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
+	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
+	if err != nil {
+		fmt.Printf("Error getting cETH contract")
+	}
+	
+	// opts := bind.CallOpts{}
+	val, err := cETHContract.BalanceOf(nil, c.client.opts.From)
+	if err != nil {
+		fmt.Printf("Error getting balance of cToken: %v", err)
+		return big.NewInt(0), err
+	}
+	return val, nil
+}
+
+
+
