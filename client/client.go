@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/524119574/go_defi/pkg/compound/cETH"
-	"github.com/524119574/go_defi/pkg/uniswap"
+	"github.com/524119574/go_defi/binding/compound/cETH"
+	"github.com/524119574/go_defi/binding/uniswap"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
