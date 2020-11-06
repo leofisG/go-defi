@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/jinzhu/copier"
 )
 
 
@@ -145,18 +144,42 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	if err != nil {
 		fmt.Printf("Error getting cETH contract")
 	}
-	
-	// We deep copy the struct here to avoid changing the initial Value.
-	supplyOpts := bind.TransactOpts{}
-	copier.Copy(&supplyOpts, c.client.opts)
-	supplyOpts.Value = big.NewInt(amount)
-	supplyOpts.GasLimit = 150000
-	supplyOpts.GasPrice = big.NewInt(20000000000)
-	_, err = cETHContract.Mint(&supplyOpts)
+
+	_, err = cETHContract.Mint(&bind.TransactOpts{
+		From: c.client.opts.From,
+		Signer: c.client.opts.Signer,
+		Value: big.NewInt(amount),
+		GasLimit: 150000,
+		GasPrice: big.NewInt(20000000000),
+	})
+
 	if err != nil {
 		fmt.Printf("Error mint ctoken: %v", err)
 		return err
 	}
+
+	return nil
+}
+
+// Redeem supplies token to compound
+func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
+	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
+	if err != nil {
+		fmt.Printf("Error getting cETH contract")
+	}
+
+	_, err = cETHContract.Redeem(&bind.TransactOpts{
+		From: c.client.opts.From,
+		Signer: c.client.opts.Signer,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}, big.NewInt(1e8))
+
+	if err != nil {
+		fmt.Printf("Error mint ctoken: %v", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -167,7 +190,6 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 		fmt.Printf("Error getting cETH contract")
 	}
 	
-	// opts := bind.CallOpts{}
 	val, err := cETHContract.BalanceOf(nil, c.client.opts.From)
 	if err != nil {
 		fmt.Printf("Error getting balance of cToken: %v", err)

@@ -30,9 +30,9 @@ func TestNewClient(t *testing.T) {
 
 	err = client.Compound().Supply(int64(10000000), ETH)
 	// // tx, err := client.Uniswap().Swap(int64(1000), DAI, ETH, common.HexToAddress("0"))
-	// if err != nil {
-	// 	log.Fatalf("Failed to supply in compound: %v", err)
-	// }
+	if err != nil {
+		log.Fatalf("Failed to supply in compound: %v", err)
+	}
 
 	val, err := client.Compound().BalanceOf(ETH)
 	if err != nil {
