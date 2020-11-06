@@ -52,28 +52,19 @@ type Client interface {
 }
 
 // NewClient Create a new client
-func NewClient(net netType, content string, passphrase string, opts *bind.TransactOpts, addr string) (*ActualClient, error) {
+func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client, net netType) (*ActualClient, error) {
 	c := new(ActualClient)
-	c.net = net
-	c.content = content
-	c.passphrase = passphrase
+	c.conn = ethClient
 	c.opts = opts
-	conn, err := ethclient.Dial(addr)
-	if err != nil {
-		return nil, err
-	}
-	
-	c.conn = conn
+	c.net = net
 	return c, nil
 }
 
 // ActualClient is the struct that stores the information.
 type ActualClient struct {
-	net netType
-	content string
-	passphrase string
 	opts *bind.TransactOpts
 	conn *ethclient.Client
+	net netType
 }
 
 
@@ -81,23 +72,16 @@ type ActualClient struct {
 
 // UniswapClient struct
 type UniswapClient struct {
-	net netType
-	content string
-	passphrase string
-	opts *bind.TransactOpts
-	conn *ethclient.Client
+	client *ActualClient
 	uniswap *uniswap.Uniswap
 }
 
 // Uniswap returns a uniswap client
 func (c *ActualClient) Uniswap() *UniswapClient {
 	uniClient := new(UniswapClient)
-	uniClient.net = c.net
-	uniClient.content = c.content
-	uniClient.passphrase = c.passphrase
-	uniClient.conn = c.conn
-	uniClient.opts = c.opts
+	uniClient.client = c
 	uniswap, err := uniswap.NewUniswap(common.HexToAddress(uniswapAddr), c.conn)
+	
 	if err != nil {
 		return nil
 	}
@@ -115,7 +99,7 @@ func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency co
 	tx, err := c.uniswap.SwapExactTokensForTokens(
 		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
 		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
-		c.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
+		c.client.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
 	if err != nil {
 		return "", err
 	}
@@ -139,6 +123,7 @@ func (c *ActualClient) Compound() *CompoundClient {
 }
 
 // Supply supplies token to compound
+// amoutn decimal is 1e18
 func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
 	if err != nil {
@@ -162,6 +147,7 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 }
 
 // Redeem supplies token to compound
+// amount decimal is 1e8
 func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
 	if err != nil {
@@ -173,7 +159,7 @@ func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 		Signer: c.client.opts.Signer,
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
-	}, big.NewInt(1e8))
+	}, big.NewInt(amount))
 
 	if err != nil {
 		fmt.Printf("Error mint ctoken: %v", err)
