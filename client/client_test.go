@@ -12,29 +12,23 @@ import (
 )
 
 // Test inbox contract gets deployed correctly
-func TestNewClient(t *testing.T) {
-	// key, _ := crypto.GenerateKey()
+func TestInteractWithCompound(t *testing.T) {
 	key, err := crypto.HexToECDSA("b8c1b5c1d81f9475fdf2e334517d29f733bdfa40682207571b12fc1142cbf329")
 	if err != nil {
 		log.Fatalf("Failed to create private key: %v", err)
 	}
 	ethClient, err := ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
-		log.Fatalf("Failed to create private key: %v", err)
+		log.Fatalf("Failed to connect to ETH: %v", err)
 	}
+
 	auth := bind.NewKeyedTransactor(key)
 	defiClient, err := NewClient(auth, ethClient, MainNet)
-
 	if err != nil {
 		t.Errorf("Error creating client: %v.", err)
 	}
 
-	if defiClient == nil {
-		t.Errorf("Empty client.")
-	}
-
-	err = defiClient.Compound().Supply(int64(10000000), ETH)
-	// // tx, err := client.Uniswap().Swap(int64(1000), DAI, ETH, common.HexToAddress("0"))
+	err = defiClient.Compound().Supply(int64(1e18), ETH)
 	if err != nil {
 		log.Fatalf("Failed to supply in compound: %v", err)
 	}

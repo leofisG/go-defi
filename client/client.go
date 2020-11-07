@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/524119574/go_defi/binding/uniswap"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -35,13 +37,24 @@ const (
 	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
 	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 	// Compound
-	cETHAddr string = "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"
+	cBATAddr  string = "0x6c8c6b02e7b2be14d4fa6022dfd6d75921d90e4e"
+	cCOMPAddr string = "0x70e36f6bf80a52b3b46b3af8e106cc0ed743e8e4"
+	cDAIAddr  string = "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"
+	cETHAddr  string = "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"
+	// ERC-20 Address
+	daiAddr string = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
 )
 
 var coinToAddressMap = map[coinType]common.Address{
 	DAI:  common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
 	USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
 	ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+}
+
+var coinToCompoundMap = map[coinType]common.Address{
+	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
+	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
+	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 }
 
 // Client is the new interface
@@ -122,23 +135,36 @@ func (c *ActualClient) Compound() *CompoundClient {
 // Supply supplies token to compound
 // amoutn decimal is 1e18
 func (c *CompoundClient) Supply(amount int64, coin coinType) error {
-	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
-	if err != nil {
-		fmt.Printf("Error getting cETH contract")
-	}
+	var (
+		tx  *types.Transaction
+		err error
+	)
 
-	_, err = cETHContract.Mint(&bind.TransactOpts{
+	cTokenAddr, err := c.getPoolAddrFromCoin(coin)
+	opts := &bind.TransactOpts{
 		From:     c.client.opts.From,
 		Signer:   c.client.opts.Signer,
-		Value:    big.NewInt(amount),
-		GasLimit: 150000,
+		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
-	})
+		Value:    big.NewInt(amount),
+	}
+
+	switch coin {
+	case ETH:
+		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
+		if err != nil {
+			fmt.Printf("Error getting cETH contract")
+		}
+
+		tx, err = cETHContract.Mint(opts)
+	}
 
 	if err != nil {
 		fmt.Printf("Error mint ctoken: %v", err)
 		return err
 	}
+
+	bind.WaitMined(context.Background(), c.client.conn, tx)
 
 	return nil
 }
@@ -146,37 +172,103 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 // Redeem supplies token to compound
 // amount decimal is 1e8
 func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
-	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
+	var (
+		tx  *types.Transaction
+		err error
+	)
+
+	cTokenAddr, err := c.getPoolAddrFromCoin(coin)
 	if err != nil {
-		fmt.Printf("Error getting cETH contract")
+		return err
 	}
 
-	_, err = cETHContract.Redeem(&bind.TransactOpts{
+	opts := &bind.TransactOpts{
 		From:     c.client.opts.From,
 		Signer:   c.client.opts.Signer,
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
-	}, big.NewInt(amount))
+	}
+
+	switch coin {
+	case ETH:
+		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting cETH contract: %v", err)
+		}
+
+		tx, err = cETHContract.Redeem(opts, big.NewInt(amount))
+	}
 
 	if err != nil {
-		fmt.Printf("Error mint ctoken: %v", err)
 		return err
 	}
+
+	bind.WaitMined(context.Background(), c.client.conn, tx)
 
 	return nil
 }
 
 // BalanceOf return the balance of given cToken
 func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
-	cETHContract, err := cETH.NewCETH(common.HexToAddress(cETHAddr), c.client.conn)
+	var (
+		val *big.Int
+		err error
+	)
+
+	cTokenAddr, err := c.getPoolAddrFromCoin(coin)
 	if err != nil {
-		fmt.Printf("Error getting cETH contract")
+		return nil, err
 	}
 
-	val, err := cETHContract.BalanceOf(nil, c.client.opts.From)
+	switch coin {
+	case ETH:
+		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
+		if err != nil {
+			fmt.Printf("Error getting cETH contract")
+		}
+
+		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
+	}
+
 	if err != nil {
 		fmt.Printf("Error getting balance of cToken: %v", err)
 		return big.NewInt(0), err
 	}
 	return val, nil
+}
+
+// BalanceOfUnderlying return the balance of given cToken
+func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*big.Int, error) {
+	var (
+		val *big.Int
+		err error
+	)
+
+	cTokenAddr, err := c.getPoolAddrFromCoin(coin)
+	if err != nil {
+		return nil, err
+	}
+
+	switch coin {
+	case ETH:
+		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
+		if err != nil {
+			fmt.Printf("Error getting cETH contract")
+		}
+
+		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
+	}
+
+	if err != nil {
+		fmt.Printf("Error getting balance of cToken: %v", err)
+		return big.NewInt(0), err
+	}
+	return val, nil
+}
+
+func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, error) {
+	if val, ok := coinToCompoundMap[coin]; ok {
+		return val, nil
+	}
+	return common.Address{}, fmt.Errorf("No corresponding compound pool for token: %v", coin)
 }
