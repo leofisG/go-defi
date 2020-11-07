@@ -24,7 +24,6 @@ jobs:
       - name: Run integration test
         run: |
           scripts/startETH.sh
-          cd client
           sleep 5
-          go test
+          go test ./client
 
