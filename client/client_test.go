@@ -51,7 +51,6 @@ func TestInteractWithCompound(t *testing.T) {
 		log.Fatal("CTH minting is not successful")
 	}
 
-
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 
 	if beforeETH.Cmp(afterETH) != 1 {
