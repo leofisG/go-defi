@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-
 type netType int
 
 const (
@@ -37,14 +36,13 @@ const (
 	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 	// Compound
 	cETHAddr string = "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"
-
 )
 
-var  coinToAddressMap = map[coinType]common.Address{
-		DAI: common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
-		USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
-		ETH: common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
-	}
+var coinToAddressMap = map[coinType]common.Address{
+	DAI:  common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
+	USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
+	ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+}
 
 // Client is the new interface
 type Client interface {
@@ -64,15 +62,14 @@ func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client, net netType
 type ActualClient struct {
 	opts *bind.TransactOpts
 	conn *ethclient.Client
-	net netType
+	net  netType
 }
-
 
 // Uniswap---------------------------------------------------------------------
 
 // UniswapClient struct
 type UniswapClient struct {
-	client *ActualClient
+	client  *ActualClient
 	uniswap *uniswap.Uniswap
 }
 
@@ -81,11 +78,11 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 	uniClient := new(UniswapClient)
 	uniClient.client = c
 	uniswap, err := uniswap.NewUniswap(common.HexToAddress(uniswapAddr), c.conn)
-	
+
 	if err != nil {
 		return nil
 	}
-	
+
 	uniClient.uniswap = uniswap
 	return uniClient
 }
@@ -131,9 +128,9 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	}
 
 	_, err = cETHContract.Mint(&bind.TransactOpts{
-		From: c.client.opts.From,
-		Signer: c.client.opts.Signer,
-		Value: big.NewInt(amount),
+		From:     c.client.opts.From,
+		Signer:   c.client.opts.Signer,
+		Value:    big.NewInt(amount),
 		GasLimit: 150000,
 		GasPrice: big.NewInt(20000000000),
 	})
@@ -155,8 +152,8 @@ func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 	}
 
 	_, err = cETHContract.Redeem(&bind.TransactOpts{
-		From: c.client.opts.From,
-		Signer: c.client.opts.Signer,
+		From:     c.client.opts.From,
+		Signer:   c.client.opts.Signer,
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
 	}, big.NewInt(amount))
@@ -175,7 +172,7 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 	if err != nil {
 		fmt.Printf("Error getting cETH contract")
 	}
-	
+
 	val, err := cETHContract.BalanceOf(nil, c.client.opts.From)
 	if err != nil {
 		fmt.Printf("Error getting balance of cToken: %v", err)
@@ -183,6 +180,3 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 	}
 	return val, nil
 }
-
-
-
