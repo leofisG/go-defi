@@ -36,13 +36,6 @@ const (
 const (
 	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
 	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
-	// Compound
-	cBATAddr  string = "0x6c8c6b02e7b2be14d4fa6022dfd6d75921d90e4e"
-	cCOMPAddr string = "0x70e36f6bf80a52b3b46b3af8e106cc0ed743e8e4"
-	cDAIAddr  string = "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"
-	cETHAddr  string = "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"
-	// ERC-20 Address
-	daiAddr string = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
 )
 
 var coinToAddressMap = map[coinType]common.Address{
