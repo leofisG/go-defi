@@ -1,8 +1,10 @@
 package client
 
 import (
-	"fmt"
+	"context"
+	"crypto/ecdsa"
 	"log"
+	"math/big"
 	"testing"
 
 	// "github.com/ethereum/go-ethereum/common"
@@ -22,6 +24,13 @@ func TestInteractWithCompound(t *testing.T) {
 		log.Fatalf("Failed to connect to ETH: %v", err)
 	}
 
+	publicKeyECDSA, ok := (key.Public()).(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("cannot assert type")
+	}
+	fromAddr := crypto.PubkeyToAddress(*publicKeyECDSA)
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+
 	auth := bind.NewKeyedTransactor(key)
 	defiClient, err := NewClient(auth, ethClient, MainNet)
 	if err != nil {
@@ -33,13 +42,19 @@ func TestInteractWithCompound(t *testing.T) {
 		log.Fatalf("Failed to supply in compound: %v", err)
 	}
 
-	val, err := defiClient.Compound().BalanceOf(ETH)
+	cETH, err := defiClient.Compound().BalanceOf(ETH)
 	if err != nil {
 		log.Fatalf("Failed to get balance: %v", err)
 	}
 
-	log.Fatalf("Get balance: %d", val.Int64())
-	fmt.Print("Test End.")
-	fmt.Printf("number %d", val.Int64())
+	if cETH == big.NewInt(0) {
+		log.Fatal("CTH minting is not successful")
+	}
 
+
+	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+
+	if beforeETH.Cmp(afterETH) != 1 {
+		log.Fatalf("ETH balance not decreasing.")
+	}
 }
