@@ -86,8 +86,12 @@ func TestInteractWithUniswap(t *testing.T) {
 	}
 
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	afterDAI, err := defiClient.BalanceOf(DAI)
 
 	if beforeETH.Cmp(afterETH) != 1 {
 		log.Fatalf("ETH balance not decreasing.")
+	}
+	if afterDAI.Cmp(big.NewInt(0)) != 1 {
+		log.Fatalf("Dai hasn't increased!")
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/524119574/go_defi/binding/compound/cETH"
 	"github.com/524119574/go_defi/binding/uniswap"
+	"github.com/524119574/go_defi/binding/erc20"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -71,8 +72,18 @@ type ActualClient struct {
 	net  netType
 }
 
+// BalanceOf returns the balance of a given coin.
 func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
-	return big.NewInt(0), nil
+	erc20, err := erc20.NewErc20(coinToAddressMap[coin], c.conn)
+	if err != nil {
+		return nil, err
+	}
+	balance, err := erc20.BalanceOf(nil, c.opts.From)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
 }
 
 // Uniswap---------------------------------------------------------------------
@@ -102,7 +113,7 @@ type TxHash string
 
 // Swap in the Uniswap Exchange.
 func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) error {
-	if baseCurrency == ETH {
+	if quoteCurrency == ETH {
 		return c.swapETHTo(size, baseCurrency, receipient)
 	}
 
