@@ -7,6 +7,7 @@ import (
 
 	"github.com/524119574/go_defi/binding/compound/cETH"
 	"github.com/524119574/go_defi/binding/uniswap"
+	"github.com/524119574/go_defi/binding/erc20"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -71,6 +72,20 @@ type ActualClient struct {
 	net  netType
 }
 
+// BalanceOf returns the balance of a given coin.
+func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
+	erc20, err := erc20.NewErc20(coinToAddressMap[coin], c.conn)
+	if err != nil {
+		return nil, err
+	}
+	balance, err := erc20.BalanceOf(nil, c.opts.From)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
+}
+
 // Uniswap---------------------------------------------------------------------
 
 // UniswapClient struct
@@ -97,17 +112,44 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 type TxHash string
 
 // Swap in the Uniswap Exchange.
-func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) (TxHash, error) {
+func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) error {
+	if quoteCurrency == ETH {
+		return c.swapETHTo(size, baseCurrency, receipient)
+	}
+
 	path := []common.Address{coinToAddressMap[quoteCurrency], coinToAddressMap[ETH], coinToAddressMap[baseCurrency]}
 	tx, err := c.uniswap.SwapExactTokensForTokens(
 		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
 		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
 		c.client.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
 	if err != nil {
-		return "", err
+		return err
 	}
-	fmt.Print(tx)
-	return "default_hash", nil
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+	return nil
+}
+
+func (c *UniswapClient) swapETHTo(size int64, baseCurrency coinType, receipient common.Address) error {
+	path := []common.Address{coinToAddressMap[ETH], coinToAddressMap[baseCurrency]}
+	tx, err := c.uniswap.SwapExactETHForTokens(
+		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
+		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
+		&bind.TransactOpts{
+			Value:    big.NewInt(size),
+			Signer:   c.client.opts.Signer,
+			From:     c.client.opts.From,
+			GasLimit: 500000,
+			GasPrice: big.NewInt(20000000000),
+		},
+		big.NewInt(0),
+		path, receipient,
+		big.NewInt(2145916800),
+	)
+	if err != nil {
+		return err
+	}
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+	return nil
 }
 
 // Compound---------------------------------------------------------------------
@@ -146,10 +188,12 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	case ETH:
 		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
 		if err != nil {
-			fmt.Printf("Error getting cETH contract")
+			return err
 		}
 
 		tx, err = cETHContract.Mint(opts)
+	default:
+		return fmt.Errorf("Not supported")
 	}
 
 	if err != nil {
