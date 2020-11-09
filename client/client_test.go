@@ -60,7 +60,7 @@ func TestInteractWithCompound(t *testing.T) {
 	}
 
 	if cETH.Cmp(big.NewInt(0)) == 0 {
-		log.Fatal("CTH minting is not successful")
+		log.Fatal("CETH minting is not successful")
 	}
 
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
@@ -87,6 +87,21 @@ func TestInteractWithUniswap(t *testing.T) {
 	if afterDAI.Cmp(big.NewInt(0)) != 1 {
 		t.Errorf("Dai hasn't increased!")
 	}
+
+	err = defiClient.Compound().Supply(int64(1e18), DAI)
+	if err != nil {
+		log.Fatalf("Failed to supply Dai in compound: %v", err)
+	}
+
+	cDai, err := defiClient.Compound().BalanceOf(DAI)
+	if err != nil {
+		log.Fatalf("Failed to get balance: %v", err)
+	}
+
+	if cDai.Cmp(big.NewInt(0)) != 1 {
+		log.Fatalf("cDAI minting is not successful: %v", cDai)
+	}
+
 }
 
 func TestMintSomeUSDC(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/524119574/go-defi/binding/compound/cDai"
 	"github.com/524119574/go-defi/binding/compound/cETH"
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/uniswap"
@@ -182,17 +183,34 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 		Signer:   c.client.opts.Signer,
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
-		Value:    big.NewInt(amount),
 	}
 
 	switch coin {
 	case ETH:
+		opts.Value = big.NewInt(amount)
 		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
 		if err != nil {
 			return err
 		}
 
 		tx, err = cETHContract.Mint(opts)
+	case DAI:
+		daiContract, err := erc20.NewErc20(CoinToAddressMap[DAI], c.client.conn)
+		if err != nil {
+			return err
+		}
+		tx, err = daiContract.Approve(opts, coinToCompoundMap[DAI], big.NewInt(amount))
+
+		if err != nil {
+			return err
+		}
+		bind.WaitMined(context.Background(), c.client.conn, tx)
+
+		cDaiContract, err := cDai.NewCDai(cTokenAddr, c.client.conn)
+		if err != nil {
+			return err
+		}
+		tx, err = cDaiContract.Mint(opts, big.NewInt(amount))
 	default:
 		return fmt.Errorf("Not supported")
 	}
@@ -262,15 +280,23 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 	case ETH:
 		cETHContract, err := cETH.NewCETH(cTokenAddr, c.client.conn)
 		if err != nil {
-			fmt.Printf("Error getting cETH contract")
+			return nil, fmt.Errorf("Error getting cETH contract")
 		}
 
 		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
+	case DAI:
+		cDaiContract, err := cDai.NewCDai(cTokenAddr, c.client.conn)
+		if err != nil {
+			return nil, fmt.Errorf("Error getting cDai contract")
+		}
+
+		val, err = cDaiContract.BalanceOf(nil, c.client.opts.From)
+	default:
+		return nil, fmt.Errorf("Not support token in balance of.")
 	}
 
 	if err != nil {
-		fmt.Printf("Error getting balance of cToken: %v", err)
-		return big.NewInt(0), err
+		return big.NewInt(0), fmt.Errorf("Error getting balance of cToken: %v", err)
 	}
 	return val, nil
 }
