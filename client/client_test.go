@@ -9,16 +9,24 @@ import (
 
 	// "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func TestInteractWithCompound(t *testing.T) {
+var key *ecdsa.PrivateKey
+var ethClient *ethclient.Client
+var publicKey *ecdsa.PublicKey
+var fromAddr common.Address
+var defiClient *ActualClient
+
+
+func init() {
 	key, err := crypto.HexToECDSA("b8c1b5c1d81f9475fdf2e334517d29f733bdfa40682207571b12fc1142cbf329")
 	if err != nil {
 		log.Fatalf("Failed to create private key: %v", err)
 	}
-	ethClient, err := ethclient.Dial("http://127.0.0.1:8545")
+	ethClient, err = ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
 		log.Fatalf("Failed to connect to ETH: %v", err)
 	}
@@ -27,14 +35,20 @@ func TestInteractWithCompound(t *testing.T) {
 	if !ok {
 		log.Fatal("cannot assert type")
 	}
-	fromAddr := crypto.PubkeyToAddress(*publicKeyECDSA)
-	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
-
+	fromAddr = crypto.PubkeyToAddress(*publicKeyECDSA)
 	auth := bind.NewKeyedTransactor(key)
-	defiClient, err := NewClient(auth, ethClient, MainNet)
+	defiClient, err = NewClient(auth, ethClient, MainNet)
 	if err != nil {
-		t.Errorf("Error creating client: %v.", err)
+		log.Fatalf("Error creating client: %v.", err)
 	}
+	_ = fromAddr
+	_ = ethClient
+	_ = defiClient
+}
+
+func TestInteractWithCompound(t *testing.T) {
+
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 
 	err = defiClient.Compound().Supply(int64(1e18), ETH)
 	if err != nil {
@@ -58,27 +72,7 @@ func TestInteractWithCompound(t *testing.T) {
 }
 
 func TestInteractWithUniswap(t *testing.T) {
-	key, err := crypto.HexToECDSA("b8c1b5c1d81f9475fdf2e334517d29f733bdfa40682207571b12fc1142cbf329")
-	if err != nil {
-		log.Fatalf("Failed to create private key: %v", err)
-	}
-	ethClient, err := ethclient.Dial("http://127.0.0.1:8545")
-	if err != nil {
-		log.Fatalf("Failed to connect to ETH: %v", err)
-	}
-
-	publicKeyECDSA, ok := (key.Public()).(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("cannot assert type")
-	}
-	fromAddr := crypto.PubkeyToAddress(*publicKeyECDSA)
 	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
-
-	auth := bind.NewKeyedTransactor(key)
-	defiClient, err := NewClient(auth, ethClient, MainNet)
-	if err != nil {
-		t.Errorf("Error creating client: %v.", err)
-	}
 
 	err = defiClient.Uniswap().Swap(1e18, DAI, ETH, fromAddr)
 	if err != nil {
