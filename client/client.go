@@ -88,6 +88,7 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
+
 // Uniswap---------------------------------------------------------------------
 
 // UniswapClient struct
@@ -195,17 +196,10 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 
 		tx, err = cETHContract.Mint(opts)
 	case DAI:
-		daiContract, err := erc20.NewErc20(CoinToAddressMap[DAI], c.client.conn)
+		err = approve(c.client, coin, cTokenAddr, big.NewInt(amount))
 		if err != nil {
 			return err
 		}
-		tx, err = daiContract.Approve(opts, coinToCompoundMap[DAI], big.NewInt(amount))
-
-		if err != nil {
-			return err
-		}
-		bind.WaitMined(context.Background(), c.client.conn, tx)
-
 		cDaiContract, err := cDai.NewCDai(cTokenAddr, c.client.conn)
 		if err != nil {
 			return err
@@ -292,7 +286,7 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 
 		val, err = cDaiContract.BalanceOf(nil, c.client.opts.From)
 	default:
-		return nil, fmt.Errorf("Not support token in balance of.")
+		return nil, fmt.Errorf("Not support token in balanceOf: %v", coin)
 	}
 
 	if err != nil {
@@ -335,4 +329,22 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 		return val, nil
 	}
 	return common.Address{}, fmt.Errorf("No corresponding compound pool for token: %v", coin)
+}
+
+
+// utility------------------------------------------------------------------------
+func approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
+	erc20Contract, err := erc20.NewErc20(CoinToAddressMap[coin], client.conn)
+	if err != nil {
+		return err
+	}
+	opts := &bind.TransactOpts{
+		Signer:   client.opts.Signer,
+		From:     client.opts.From,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}
+	tx, err := erc20Contract.Approve(opts, coinToCompoundMap[DAI], size)
+	bind.WaitMined(context.Background(), client.conn, tx)
+	return nil
 }
