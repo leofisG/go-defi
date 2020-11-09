@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	// "github.com/ethereum/go-ethereum/common"
+	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,9 +20,9 @@ var publicKey *ecdsa.PublicKey
 var fromAddr common.Address
 var defiClient *ActualClient
 
-
 func init() {
-	key, err := crypto.HexToECDSA("b8c1b5c1d81f9475fdf2e334517d29f733bdfa40682207571b12fc1142cbf329")
+	var err error
+	key, err = crypto.HexToECDSA("b8c1b5c1d81f9475fdf2e334517d29f733bdfa40682207571b12fc1142cbf329")
 	if err != nil {
 		log.Fatalf("Failed to create private key: %v", err)
 	}
@@ -36,8 +36,7 @@ func init() {
 		log.Fatal("cannot assert type")
 	}
 	fromAddr = crypto.PubkeyToAddress(*publicKeyECDSA)
-	auth := bind.NewKeyedTransactor(key)
-	defiClient, err = NewClient(auth, ethClient, MainNet)
+	defiClient, err = NewClient(bind.NewKeyedTransactor(key), ethClient, MainNet)
 	if err != nil {
 		log.Fatalf("Error creating client: %v.", err)
 	}
@@ -60,7 +59,7 @@ func TestInteractWithCompound(t *testing.T) {
 		log.Fatalf("Failed to get balance: %v", err)
 	}
 
-	if cETH == big.NewInt(0) {
+	if cETH.Cmp(big.NewInt(0)) == 0 {
 		log.Fatal("CTH minting is not successful")
 	}
 
@@ -76,16 +75,31 @@ func TestInteractWithUniswap(t *testing.T) {
 
 	err = defiClient.Uniswap().Swap(1e18, DAI, ETH, fromAddr)
 	if err != nil {
-		log.Fatalf("Failed to swap in uniswap: %v", err)
+		t.Errorf("Failed to swap in uniswap: %v", err)
 	}
 
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 	afterDAI, err := defiClient.BalanceOf(DAI)
 
 	if beforeETH.Cmp(afterETH) != 1 {
-		log.Fatalf("ETH balance not decreasing.")
+		t.Errorf("ETH balance not decreasing.")
 	}
 	if afterDAI.Cmp(big.NewInt(0)) != 1 {
-		log.Fatalf("Dai hasn't increased!")
+		t.Errorf("Dai hasn't increased!")
+	}
+}
+
+func TestMintSomeUSDC(t *testing.T) {
+	_, err := erc20.NewErc20(CoinToAddressMap[USDC], ethClient)
+	if err != nil {
+		t.Errorf("Error getting USDC Contract")
+	}
+	beforeUSDC, err := defiClient.BalanceOf(USDC)
+	if err != nil {
+		t.Errorf("Error getting USDC balance")
+	}
+
+	if beforeUSDC.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("Before USDC not 0, %v", beforeUSDC)
 	}
 }

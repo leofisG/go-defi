@@ -1,3 +1,6 @@
+github.com/524119574/go-defi v0.0.0-20201109025938-37a42350115d h1:t9HZqaVBeu7SOY6cEPFgnX8+FdvBqSbzTV/hyaYk4UE=
+github.com/524119574/go_defi v0.0.0-20201109025938-37a42350115d h1:8tCkvAH+AChSqwJmXFNCeNDdLQyCW0Zn/9iKc+EaPNc=
+github.com/524119574/go_defi v0.0.0-20201109025938-37a42350115d/go.mod h1:/ldxx/5cBz/Ly0lzgjFVCztLfdaE0N44jQhOoYXB/Gw=
 github.com/Azure/azure-pipeline-go v0.2.1/go.mod h1:UGSo8XybXnIGZ3epmeBw7Jdz+HiUVpqIlpz/HKHylF4=
 github.com/Azure/azure-pipeline-go v0.2.2/go.mod h1:4rQ/NZncSvGqNkkOsNpOU1tgoNuIlp9AfUH5G1tvCHc=
 github.com/Azure/azure-storage-blob-go v0.7.0/go.mod h1:f9YQKtsG1nMisotuTPpO0tjNuEjKRYAcJU8/ydDI++4=

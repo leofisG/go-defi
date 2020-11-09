@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/524119574/go_defi/binding/compound/cETH"
-	"github.com/524119574/go_defi/binding/uniswap"
-	"github.com/524119574/go_defi/binding/erc20"
+	"github.com/524119574/go-defi/binding/compound/cETH"
+	"github.com/524119574/go-defi/binding/erc20"
+	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,7 +39,8 @@ const (
 	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 )
 
-var coinToAddressMap = map[coinType]common.Address{
+// CoinToAddressMap returns a mapping from coin to address
+var CoinToAddressMap = map[coinType]common.Address{
 	DAI:  common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
 	USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
 	ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
@@ -74,7 +75,7 @@ type ActualClient struct {
 
 // BalanceOf returns the balance of a given coin.
 func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
-	erc20, err := erc20.NewErc20(coinToAddressMap[coin], c.conn)
+	erc20, err := erc20.NewErc20(CoinToAddressMap[coin], c.conn)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +118,7 @@ func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency co
 		return c.swapETHTo(size, baseCurrency, receipient)
 	}
 
-	path := []common.Address{coinToAddressMap[quoteCurrency], coinToAddressMap[ETH], coinToAddressMap[baseCurrency]}
+	path := []common.Address{CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]}
 	tx, err := c.uniswap.SwapExactTokensForTokens(
 		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
 		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
@@ -130,7 +131,7 @@ func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency co
 }
 
 func (c *UniswapClient) swapETHTo(size int64, baseCurrency coinType, receipient common.Address) error {
-	path := []common.Address{coinToAddressMap[ETH], coinToAddressMap[baseCurrency]}
+	path := []common.Address{CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]}
 	tx, err := c.uniswap.SwapExactETHForTokens(
 		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
 		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
