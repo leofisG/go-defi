@@ -27,12 +27,28 @@ const (
 type coinType int
 
 const (
-	// DAI weiwu
-	DAI coinType = iota
-	// USDC weiwu
-	USDC coinType = iota
 	// ETH weiwu
 	ETH coinType = iota
+	// BAT weiwu
+	BAT coinType = iota
+	// COMP weiwu
+	COMP coinType = iota
+	// DAI weiwu
+	DAI coinType = iota
+	// REP weiwu
+	REP coinType = iota
+	// SAI weiwu
+	SAI coinType = iota
+	// UNI weiwu
+	UNI coinType = iota
+	// USDC weiwu
+	USDC coinType = iota
+	// USDT weiwu
+	USDT coinType = iota
+	// WBTC weiwu
+	WBTC coinType = iota
+	// ZRX weiwu
+	ZRX coinType = iota
 )
 
 const (
@@ -42,15 +58,18 @@ const (
 
 // CoinToAddressMap returns a mapping from coin to address
 var CoinToAddressMap = map[coinType]common.Address{
+	ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+	BAT:  common.HexToAddress("0x0d8775f648430679a709e98d2b0cb6250d2887ef"),
+	COMP: common.HexToAddress("0xc00e94cb662c3520282e6f5717214004a7f26888"),
 	DAI:  common.HexToAddress("0x6b175474e89094c44da98b954eedeac495271d0f"),
 	USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
-	ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+	USDT: common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"),
 }
 
 var coinToCompoundMap = map[coinType]common.Address{
+	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
-	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 }
 
 // Client is the new interface
@@ -88,7 +107,6 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
-
 // Uniswap---------------------------------------------------------------------
 
 // UniswapClient struct
@@ -117,22 +135,21 @@ type TxHash string
 // Swap in the Uniswap Exchange.
 func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) error {
 	if quoteCurrency == ETH {
-		return c.swapETHTo(size, baseCurrency, receipient)
+		return c.swapETHToToken(size, baseCurrency, receipient)
+	} else {
+		err := approve(c.client, quoteCurrency, common.HexToAddress(uniswapAddr), big.NewInt(size))
+		if err != nil {
+			return err
+		}
+		if baseCurrency == ETH {
+			return c.swapTokenToETH(size, quoteCurrency, receipient)
+		} else {
+			return c.swapTokenToToken(size, baseCurrency, quoteCurrency, receipient)
+		}
 	}
-
-	path := []common.Address{CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]}
-	tx, err := c.uniswap.SwapExactTokensForTokens(
-		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
-		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
-		c.client.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
-	if err != nil {
-		return err
-	}
-	bind.WaitMined(context.Background(), c.client.conn, tx)
-	return nil
 }
 
-func (c *UniswapClient) swapETHTo(size int64, baseCurrency coinType, receipient common.Address) error {
+func (c *UniswapClient) swapETHToToken(size int64, baseCurrency coinType, receipient common.Address) error {
 	path := []common.Address{CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]}
 	tx, err := c.uniswap.SwapExactETHForTokens(
 		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
@@ -148,6 +165,34 @@ func (c *UniswapClient) swapETHTo(size int64, baseCurrency coinType, receipient 
 		path, receipient,
 		big.NewInt(2145916800),
 	)
+	if err != nil {
+		return err
+	}
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+	return nil
+}
+
+func (c *UniswapClient) swapTokenToToken(size int64, baseCurrency coinType, quoteCurrency coinType, receipient common.Address) error {
+	path := []common.Address{CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]}
+
+	tx, err := c.uniswap.SwapExactTokensForTokens(
+		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
+		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
+		c.client.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
+	if err != nil {
+		return err
+	}
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+	return nil
+}
+
+func (c *UniswapClient) swapTokenToETH(size int64, quoteCurrency coinType, receipient common.Address) error {
+	path := []common.Address{CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH]}
+
+	tx, err := c.uniswap.SwapExactTokensForETH(
+		// TODO: there is basically no minimum output amount set, so this could cause huge slippage, need to fix.
+		// Also the time stamp is set to 2038 January 1, it's better to set it dynamically.
+		c.client.opts, big.NewInt(size), big.NewInt(0), path, receipient, big.NewInt(2145916800))
 	if err != nil {
 		return err
 	}
@@ -330,7 +375,6 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 	}
 	return common.Address{}, fmt.Errorf("No corresponding compound pool for token: %v", coin)
 }
-
 
 // utility------------------------------------------------------------------------
 func approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
