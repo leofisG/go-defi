@@ -330,13 +330,13 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 		}
 
 		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
-	case DAI:
-		cDaiContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
+	case BAT, COMP, DAI, REP, SAI, UNI, USDC, USDT, WBTC, ZRX:
+		cTokenContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting cDai contract")
 		}
 
-		val, err = cDaiContract.BalanceOf(nil, c.client.opts.From)
+		val, err = cTokenContract.BalanceOf(nil, c.client.opts.From)
 	default:
 		return nil, fmt.Errorf("Not support token in balanceOf: %v", coin)
 	}
@@ -348,9 +348,10 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 }
 
 // BalanceOfUnderlying return the balance of given cToken
-func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*big.Int, error) {
+// TODO: figure out why is this API so strange? Why is it different from BalanceOf?
+func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction, error) {
 	var (
-		val *big.Int
+		tx  *types.Transaction
 		err error
 	)
 
@@ -366,14 +367,21 @@ func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*big.Int, error) {
 			fmt.Printf("Error getting cETH contract")
 		}
 
-		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
+		tx, err = cETHContract.BalanceOfUnderlying(nil, c.client.opts.From)
+	case BAT, COMP, DAI, REP, SAI, UNI, USDC, USDT, WBTC, ZRX:
+		cTokenContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
+		if err != nil {
+			return nil, fmt.Errorf("Error getting cDai contract")
+		}
+
+		tx, err = cTokenContract.BalanceOfUnderlying(nil, c.client.opts.From)
 	}
 
 	if err != nil {
 		fmt.Printf("Error getting balance of cToken: %v", err)
-		return big.NewInt(0), err
+		return nil, err
 	}
-	return val, nil
+	return tx, nil
 }
 
 func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, error) {
