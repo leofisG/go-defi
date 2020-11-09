@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/524119574/go-defi/binding/compound/cDai"
 	"github.com/524119574/go-defi/binding/compound/cETH"
+	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -240,16 +240,16 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 		}
 
 		tx, err = cETHContract.Mint(opts)
-	case DAI:
+	case BAT, COMP, DAI, REP, SAI, UNI, USDC, USDT, WBTC, ZRX:
 		err = approve(c.client, coin, cTokenAddr, big.NewInt(amount))
 		if err != nil {
 			return err
 		}
-		cDaiContract, err := cDai.NewCDai(cTokenAddr, c.client.conn)
+		cTokenContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
 		if err != nil {
 			return err
 		}
-		tx, err = cDaiContract.Mint(opts, big.NewInt(amount))
+		tx, err = cTokenContract.Mint(opts, big.NewInt(amount))
 	default:
 		return fmt.Errorf("Not supported")
 	}
@@ -292,6 +292,13 @@ func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 		}
 
 		tx, err = cETHContract.Redeem(opts, big.NewInt(amount))
+	case BAT, COMP, DAI, REP, SAI, UNI, USDC, USDT, WBTC, ZRX:
+		cTokenContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting cToken contract: %v", err)
+		}
+
+		tx, err = cTokenContract.Redeem(opts, big.NewInt(amount))
 	}
 
 	if err != nil {
@@ -324,7 +331,7 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 
 		val, err = cETHContract.BalanceOf(nil, c.client.opts.From)
 	case DAI:
-		cDaiContract, err := cDai.NewCDai(cTokenAddr, c.client.conn)
+		cDaiContract, err := cToken.NewCToken(cTokenAddr, c.client.conn)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting cDai contract")
 		}
