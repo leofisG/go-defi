@@ -9,10 +9,12 @@ import (
 	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/uniswap"
+	"github.com/524119574/go-defi/binding/yearn/yregistry"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/tools/go/analysis/passes/nilfunc"
 )
 
 type netType int
@@ -53,7 +55,8 @@ const (
 
 const (
 	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
-	uniswapAddr string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	uniswapAddr   string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	yRegistryAddr string = "0x3eE41C098f9666ed2eA246f4D2558010e59d63A0"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -389,6 +392,50 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 		return val, nil
 	}
 	return common.Address{}, fmt.Errorf("No corresponding compound pool for token: %v", coin)
+}
+
+// yearn-----------------------------------------------------------------------------------------------------
+
+// YearnClient is an instance of Compound protocol.
+type YearnClient struct {
+	client       *ActualClient
+	tokenToVault map[common.Address]common.Address
+}
+
+// Yearn returns a Yearn client
+func (c *ActualClient) Yearn() *YearnClient {
+	yearnClient := new(YearnClient)
+	yearnClient.client = c
+
+	yregistry, err := yregistry.NewYregistry(common.HexToAddress(yRegistryAddr), c.conn)
+	if err != nil {
+		return nil
+	}
+
+	vaults, err := yregistry.GetVaults(nil)
+	if err != nil {
+		return nil
+	}
+
+	vaultInfos, err := yregistry.GetVaultsInfo(nil)
+	if err != nil {
+		return nil
+	}
+
+	yearnClient.tokenToVault = make(map[common.Address]common.Address)
+	for i := 0; i < len(vaults); i++ {
+		yearnClient.tokenToVault[vaultInfos.TokenArray[i]] = vaults[i]
+	}
+
+	return yearnClient
+}
+
+func (c *YearnClient) addLiquidity(size big.Int, coin coinType) error {
+	return nil
+}
+
+func (c *YearnClient) removeLiquidity(size big.Int, coin coinType) error {
+	return nil
 }
 
 // utility------------------------------------------------------------------------
