@@ -118,3 +118,17 @@ func TestMintSomeUSDC(t *testing.T) {
 		t.Errorf("Before USDC not 0, %v", beforeUSDC)
 	}
 }
+
+func TestInteractWithYearn(t *testing.T) {
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+
+	err = defiClient.Yearn().addLiquidity(big.NewInt(1e18), ETH)
+	if err != nil {
+		t.Errorf("Failed to swap in uniswap: %v", err)
+	}
+
+	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	if beforeETH.Cmp(afterETH) != 1 {
+		t.Errorf("ETH balance not decreasing.")
+	}
+}

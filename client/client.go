@@ -10,11 +10,12 @@ import (
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/524119574/go-defi/binding/yearn/yregistry"
+	"github.com/524119574/go-defi/binding/yearn/yvault"
+	"github.com/524119574/go-defi/binding/yearn/yweth"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"golang.org/x/tools/go/analysis/passes/nilfunc"
 )
 
 type netType int
@@ -430,11 +431,51 @@ func (c *ActualClient) Yearn() *YearnClient {
 	return yearnClient
 }
 
-func (c *YearnClient) addLiquidity(size big.Int, coin coinType) error {
+func (c *YearnClient) addLiquidity(size *big.Int, coin coinType) error {
+	var (
+		tx  *types.Transaction
+		err error
+	)
+	opts := &bind.TransactOpts{
+		From:     c.client.opts.From,
+		Signer:   c.client.opts.Signer,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}
+
+	if coin == ETH {
+		weth, err := yweth.NewYweth(common.HexToAddress("0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"), c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting weth contract")
+		}
+		opts.Value = size
+		tx, err = weth.DepositETH(opts)
+	} else if coin != ETH {
+		tokenAddr := CoinToAddressMap[coin]
+		vaultAddr, ok := c.tokenToVault[tokenAddr]
+		if !ok {
+			return fmt.Errorf("No corresponding vault found for: %v ", coin)
+		}
+		err = approve(c.client, coin, vaultAddr, size)
+		yvault, err := yvault.NewYvault(vaultAddr, c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting weth contract")
+		}
+		opts.Value = size
+		tx, err = yvault.Deposit(opts, size)
+	}
+
+	if err != nil {
+		fmt.Printf("Error deposit into vault: %v", err)
+		return err
+	}
+
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+
 	return nil
 }
 
-func (c *YearnClient) removeLiquidity(size big.Int, coin coinType) error {
+func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
 	return nil
 }
 
