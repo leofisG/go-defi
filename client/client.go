@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/524119574/go-defi/binding/aave/lendingpool"
 	"github.com/524119574/go-defi/binding/compound/cETH"
 	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
@@ -56,8 +57,10 @@ const (
 
 const (
 	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
-	uniswapAddr   string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
-	yRegistryAddr string = "0x3eE41C098f9666ed2eA246f4D2558010e59d63A0"
+	uniswapAddr         string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	yRegistryAddr       string = "0x3eE41C098f9666ed2eA246f4D2558010e59d63A0"
+	lendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
+	lendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -476,6 +479,53 @@ func (c *YearnClient) addLiquidity(size *big.Int, coin coinType) error {
 }
 
 func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
+	return nil
+}
+
+// Aave----------------------------------------------------------------------------
+
+// AaveClient is an instance of Aave protocol.
+type AaveClient struct {
+	client      *ActualClient
+	lendingPool *lendingpool.Lendingpool
+}
+
+// Aave returns a Aave client
+func (c *ActualClient) Aave() *AaveClient {
+	aaveClient := new(AaveClient)
+	aaveClient.client = c
+
+	lendingpool, err := lendingpool.NewLendingpool(common.HexToAddress(lendingPoolAddr), c.conn)
+	if err != nil {
+		return nil
+	}
+	aaveClient.lendingPool = lendingpool
+	return aaveClient
+}
+
+// Lend lend to the lending pool
+func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
+	opts := &bind.TransactOpts{
+		From:     c.client.opts.From,
+		Signer:   c.client.opts.Signer,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}
+
+	if coin != ETH {
+		approve(c.client, coin, common.HexToAddress(lendingPoolCoreAddr), size)
+	}
+
+	tx, err := c.lendingPool.Deposit(opts, CoinToAddressMap[coin], size, 0)
+	if err != nil {
+		return err
+	}
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+	return nil
+}
+
+// Borrow borrow money from lending pool
+func (c *AaveClient) Borrow(size big.Int, coin coinType) error {
 	return nil
 }
 
