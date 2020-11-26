@@ -9,6 +9,7 @@ import (
 	"github.com/524119574/go-defi/binding/compound/cETH"
 	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
+	"github.com/524119574/go-defi/binding/furucombo"
 	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/524119574/go-defi/binding/yearn/yregistry"
 	"github.com/524119574/go-defi/binding/yearn/yvault"
@@ -26,6 +27,15 @@ const (
 	MainNet netType = iota
 	// TestNet the test net.
 	TestNet netType = iota
+)
+
+type rateModel int64
+
+const (
+	// StableRate https://medium.com/aave/aave-borrowing-rates-upgraded-f6c8b27973a7
+	StableRate rateModel = 1
+	// VariableRate https://medium.com/aave/aave-borrowing-rates-upgraded-f6c8b27973a7
+	VariableRate rateModel = 2
 )
 
 type coinType int
@@ -57,10 +67,12 @@ const (
 
 const (
 	// uniswapAddr is UniswapV2Router, see here: https://uniswap.org/docs/v2/smart-contracts/router02/#address
-	uniswapAddr         string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
-	yRegistryAddr       string = "0x3eE41C098f9666ed2eA246f4D2558010e59d63A0"
-	lendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
-	lendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
+	uniswapAddr             string = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	yRegistryAddr           string = "0x3eE41C098f9666ed2eA246f4D2558010e59d63A0"
+	yETHVaultAddr           string = "0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"
+	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
+	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
+	furucomboAddr           string = "0x9999c88F31DC3BAeECc6F0d66db98D22e844f661"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -73,7 +85,7 @@ var CoinToAddressMap = map[coinType]common.Address{
 	USDT: common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"),
 }
 
-var coinToCompoundMap = map[coinType]common.Address{
+var CoinToCompoundMap = map[coinType]common.Address{
 	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
@@ -112,6 +124,31 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	}
 
 	return balance, nil
+}
+
+func (c *ActualClient) BatchExecute(tos []common.Address, datas [][]byte) error {
+	proxy, err := furucombo.NewFurucombo(common.HexToAddress(furucomboAddr), c.conn)
+	if err != nil {
+		return nil
+	}
+	opts := &bind.TransactOpts{
+		Signer:   c.opts.Signer,
+		From:     c.opts.From,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}
+	tx, err := proxy.BatchExec(opts, tos, datas)
+	if err != nil {
+		return nil
+	}
+	receipt, err := bind.WaitMined(context.Background(), c.conn, tx)
+	if err != nil {
+		return err
+	}
+	if receipt.Status != 1 {
+		return fmt.Errorf("tx receipt status is not 1, indicating a failure occurred")
+	}
+	return nil
 }
 
 // Uniswap---------------------------------------------------------------------
@@ -392,7 +429,7 @@ func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction,
 }
 
 func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, error) {
-	if val, ok := coinToCompoundMap[coin]; ok {
+	if val, ok := CoinToCompoundMap[coin]; ok {
 		return val, nil
 	}
 	return common.Address{}, fmt.Errorf("No corresponding compound pool for token: %v", coin)
@@ -447,7 +484,7 @@ func (c *YearnClient) addLiquidity(size *big.Int, coin coinType) error {
 	}
 
 	if coin == ETH {
-		weth, err := yweth.NewYweth(common.HexToAddress("0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"), c.client.conn)
+		weth, err := yweth.NewYweth(common.HexToAddress(yETHVaultAddr), c.client.conn)
 		if err != nil {
 			return fmt.Errorf("Error getting weth contract")
 		}
@@ -479,6 +516,44 @@ func (c *YearnClient) addLiquidity(size *big.Int, coin coinType) error {
 }
 
 func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
+	var (
+		tx  *types.Transaction
+		err error
+	)
+	opts := &bind.TransactOpts{
+		From:     c.client.opts.From,
+		Signer:   c.client.opts.Signer,
+		GasLimit: 500000,
+		GasPrice: big.NewInt(20000000000),
+	}
+
+	if coin == ETH {
+		weth, err := yweth.NewYweth(common.HexToAddress(yETHVaultAddr), c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting weth contract")
+		}
+		tx, err = weth.WithdrawETH(opts, size)
+	} else if coin != ETH {
+		tokenAddr := CoinToAddressMap[coin]
+		vaultAddr, ok := c.tokenToVault[tokenAddr]
+		if !ok {
+			return fmt.Errorf("No corresponding vault found for: %v ", coin)
+		}
+		yvault, err := yvault.NewYvault(vaultAddr, c.client.conn)
+		if err != nil {
+			return fmt.Errorf("Error getting weth contract")
+		}
+		opts.Value = size
+		tx, err = yvault.Withdraw(opts, size)
+	}
+
+	if err != nil {
+		fmt.Printf("Error withdraw from vault: %v", err)
+		return err
+	}
+
+	bind.WaitMined(context.Background(), c.client.conn, tx)
+
 	return nil
 }
 
@@ -495,7 +570,7 @@ func (c *ActualClient) Aave() *AaveClient {
 	aaveClient := new(AaveClient)
 	aaveClient.client = c
 
-	lendingpool, err := lendingpool.NewLendingpool(common.HexToAddress(lendingPoolAddr), c.conn)
+	lendingpool, err := lendingpool.NewLendingpool(common.HexToAddress(aaveLendingPoolAddr), c.conn)
 	if err != nil {
 		return nil
 	}
@@ -513,7 +588,7 @@ func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 	}
 
 	if coin != ETH {
-		approve(c.client, coin, common.HexToAddress(lendingPoolCoreAddr), size)
+		approve(c.client, coin, common.HexToAddress(aaveLendingPoolCoreAddr), size)
 	}
 
 	tx, err := c.lendingPool.Deposit(opts, CoinToAddressMap[coin], size, 0)
@@ -525,8 +600,30 @@ func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 }
 
 // Borrow borrow money from lending pool
-func (c *AaveClient) Borrow(size big.Int, coin coinType) error {
+func (c *AaveClient) Borrow(size *big.Int, coin coinType, interestRate rateModel) error {
 	return nil
+}
+
+type ReserveData struct {
+	CurrentATokenBalance     *big.Int
+	CurrentBorrowBalance     *big.Int
+	PrincipalBorrowBalance   *big.Int
+	BorrowRateMode           *big.Int
+	BorrowRate               *big.Int
+	LiquidityRate            *big.Int
+	OriginationFee           *big.Int
+	VariableBorrowIndex      *big.Int
+	LastUpdateTimestamp      *big.Int
+	UsageAsCollateralEnabled bool
+}
+
+// Borrow borrow money from lending pool
+func (c *AaveClient) GetUserReserveData(addr common.Address, user common.Address) (ReserveData, error) {
+	data, err := c.lendingPool.GetUserReserveData(nil, addr, user)
+	if err != nil {
+		return ReserveData{}, err
+	}
+	return data, nil
 }
 
 // utility------------------------------------------------------------------------
@@ -541,7 +638,7 @@ func approve(client *ActualClient, coin coinType, addr common.Address, size *big
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
 	}
-	tx, err := erc20Contract.Approve(opts, coinToCompoundMap[DAI], size)
+	tx, err := erc20Contract.Approve(opts, CoinToCompoundMap[DAI], size)
 	bind.WaitMined(context.Background(), client.conn, tx)
 	return nil
 }
