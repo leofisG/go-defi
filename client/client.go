@@ -72,7 +72,7 @@ const (
 	yETHVaultAddr           string = "0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
-	furucomboAddr           string = "0x9999c88F31DC3BAeECc6F0d66db98D22e844f661"
+	furucomboAddr           string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -638,7 +638,7 @@ func approve(client *ActualClient, coin coinType, addr common.Address, size *big
 		GasLimit: 500000,
 		GasPrice: big.NewInt(20000000000),
 	}
-	tx, err := erc20Contract.Approve(opts, CoinToCompoundMap[DAI], size)
+	tx, err := erc20Contract.Approve(opts, addr, size)
 	bind.WaitMined(context.Background(), client.conn, tx)
 	return nil
 }
