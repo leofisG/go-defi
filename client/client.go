@@ -85,6 +85,7 @@ var CoinToAddressMap = map[coinType]common.Address{
 	USDT: common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"),
 }
 
+// CoinToCompoundMap returns a mapping from coin to compound address
 var CoinToCompoundMap = map[coinType]common.Address{
 	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
