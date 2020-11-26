@@ -3,13 +3,15 @@ package client
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"log"
 	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/524119574/go-defi/binding/erc20"
-	"github.com/524119574/go-defi/binding/hctoken"
+	"github.com/524119574/go-defi/binding/hcether"
+
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -163,10 +165,8 @@ func TestInteractWithYearn(t *testing.T) {
 }
 
 func TestInteractWithFurucomboWithCompound(t *testing.T) {
-	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(50000000000))
 
-
-	beforeCDAI, err := defiClient.Compound().BalanceOf(DAI)
+	beforeCETH, err := defiClient.Compound().BalanceOf(ETH)
 
 	if err != nil {
 		log.Fatalf("Failed to get balance: %v", err)
@@ -175,27 +175,22 @@ func TestInteractWithFurucomboWithCompound(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create ABI: %v", err)
 	}
-	injectData, err := parsed.Pack(
-		"inject",
-		[]common.Address{CoinToAddressMap[DAI]},
-		[]*big.Int{big.NewInt(1000000)})
+
 	if err != nil {
 		t.Errorf("Failed to create call data: %v", err)
 	}
-	parsed, err = abi.JSON(strings.NewReader(hctoken.HctokenABI))
+	parsed, err = abi.JSON(strings.NewReader(hcether.HcetherABI))
 	if err != nil {
 		t.Errorf("Failed to create ABI: %v", err)
 	}
-	mintData, err := parsed.Pack("mint", CoinToCompoundMap[DAI], big.NewInt(10000))
+	mintData, err := parsed.Pack("mint", big.NewInt(1e18))
 	if err != nil {
 		t.Errorf("Failed to create call data: %v", err)
 	}
 	handlers := []common.Address{
-		common.HexToAddress("0x914490a362f4507058403a99e28bdf685c5c767f"),
-		common.HexToAddress("0x8973D623d883c5641Dd3906625Aac31cdC8790c5"),
+		common.HexToAddress("0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"),
 	}
 	datas := [][]byte{
-		injectData,
 		mintData,
 	}
 
@@ -204,13 +199,13 @@ func TestInteractWithFurucomboWithCompound(t *testing.T) {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
 	}
 
-	afterCDAI, err := defiClient.Compound().BalanceOf(DAI)
+	afterCETH, err := defiClient.Compound().BalanceOf(ETH)
 	if err != nil {
 		t.Errorf("Failed to get balance: %v", err)
 	}
 
-	if afterCDAI.Cmp(beforeCDAI) != 1 {
-		// t.Errorf("cDai minting is not successful via Furucombo: %v %v", afterCDAI, beforeCDAI)
+	if afterCETH.Cmp(beforeCETH) != 1 {
+		t.Errorf("cETH minting is not successful via Furucombo: %v %v %v", afterCETH, beforeCETH, hex.EncodeToString(mintData))
 	}
 
 }

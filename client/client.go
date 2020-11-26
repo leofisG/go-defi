@@ -132,6 +132,7 @@ func (c *ActualClient) BatchExecute(tos []common.Address, datas [][]byte) error 
 		return nil
 	}
 	opts := &bind.TransactOpts{
+		Value:    big.NewInt(9000000000000000000),
 		Signer:   c.opts.Signer,
 		From:     c.opts.From,
 		GasLimit: 500000,
