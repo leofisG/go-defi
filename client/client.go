@@ -2,8 +2,16 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
+
+	"github.com/524119574/go-defi/binding/hcether"
+	"github.com/524119574/go-defi/binding/hctoken"
+
+	"github.com/524119574/go-defi/binding/herc20tokenin"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	"github.com/524119574/go-defi/binding/aave/lendingpool"
 	"github.com/524119574/go-defi/binding/compound/cETH"
@@ -73,6 +81,9 @@ const (
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
 	furucomboAddr           string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+	hCEtherAddr             string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
+	hErcInAddr              string = "0x914490a362f4507058403a99e28bdf685c5c767f"
+	hCTokenAddr             string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -127,19 +138,28 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
-func (c *ActualClient) BatchExecute(tos []common.Address, datas [][]byte) error {
+func (c *ActualClient) executeActions(actions *Actions) error {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].HandlerAddr)
+		datas = append(datas, actions.Actions[i].Data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+	}
+
 	proxy, err := furucombo.NewFurucombo(common.HexToAddress(furucomboAddr), c.conn)
 	if err != nil {
 		return nil
 	}
 	opts := &bind.TransactOpts{
-		Value:    big.NewInt(9000000000000000000),
+		Value:    totalEthers,
 		Signer:   c.opts.Signer,
 		From:     c.opts.From,
-		GasLimit: 500000,
-		GasPrice: big.NewInt(20000000000),
+		GasLimit: 5000000,
+		GasPrice: big.NewInt(20),
 	}
-	tx, err := proxy.BatchExec(opts, tos, datas)
+	tx, err := proxy.BatchExec(opts, handlers, datas)
 	if err != nil {
 		return nil
 	}
@@ -151,6 +171,22 @@ func (c *ActualClient) BatchExecute(tos []common.Address, datas [][]byte) error 
 		return fmt.Errorf("tx receipt status is not 1, indicating a failure occurred")
 	}
 	return nil
+
+}
+
+type Action struct {
+	HandlerAddr  common.Address
+	Data         []byte
+	ethersNeeded *big.Int
+}
+
+type Actions struct {
+	Actions []Action
+}
+
+// Add adds actions together
+func (actions *Actions) Add(newActions *Actions) {
+	actions.Actions = append(actions.Actions, newActions.Actions...)
 }
 
 // Uniswap---------------------------------------------------------------------
@@ -428,6 +464,69 @@ func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction,
 		return nil, err
 	}
 	return tx, nil
+}
+
+func (c *CompoundClient) SupplyActions(size *big.Int, coin coinType) *Actions {
+	if coin == ETH {
+		return c.supplyActionsETH(size, coin)
+	} else {
+		return c.supplyActionsERC20(size, coin)
+	}
+}
+
+func (c *CompoundClient) supplyActionsETH(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcether.HcetherABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	data, err := parsed.Pack("mint", big.NewInt(1e18))
+	if err != nil {
+		fmt.Errorf("Failed to create call data: %v", err)
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hCEtherAddr),
+				Data:         data,
+				ethersNeeded: size,
+			},
+		},
+	}
+}
+
+func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	injectData, err := parsed.Pack(
+		"inject", []common.Address{CoinToAddressMap[DAI]}, []*big.Int{big.NewInt(1e18)})
+
+	if err != nil {
+		fmt.Errorf("Failed to create call data: %v", err)
+	}
+	parsed, err = abi.JSON(strings.NewReader(hctoken.HctokenABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	mintData, err := parsed.Pack("mint", CoinToCompoundMap[DAI], big.NewInt(1e18))
+	if err != nil {
+		fmt.Errorf("Failed to create call data: %v", err)
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hErcInAddr),
+				Data:         injectData,
+				ethersNeeded: big.NewInt(0),
+			},
+			{
+				HandlerAddr:  common.HexToAddress(hCTokenAddr),
+				Data:         mintData,
+				ethersNeeded: big.NewInt(0),
+			},
+		},
+	}
 }
 
 func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, error) {

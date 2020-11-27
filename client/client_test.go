@@ -5,15 +5,10 @@ import (
 	"crypto/ecdsa"
 	"log"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/524119574/go-defi/binding/erc20"
-	"github.com/524119574/go-defi/binding/hcether"
-	"github.com/524119574/go-defi/binding/hctoken"
 
-	"github.com/524119574/go-defi/binding/herc20tokenin"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -164,7 +159,7 @@ func TestInteractWithYearn(t *testing.T) {
 	}
 }
 
-func TestInteractWithFurucomboWithCompound(t *testing.T) {
+func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 
 	beforeCETH, err := defiClient.Compound().BalanceOf(ETH)
 
@@ -172,25 +167,14 @@ func TestInteractWithFurucomboWithCompound(t *testing.T) {
 		log.Fatalf("Failed to get balance: %v", err)
 	}
 
-	if err != nil {
-		t.Errorf("Failed to create call data: %v", err)
-	}
-	parsed, err := abi.JSON(strings.NewReader(hcether.HcetherABI))
-	if err != nil {
-		t.Errorf("Failed to create ABI: %v", err)
-	}
-	mintData, err := parsed.Pack("mint", big.NewInt(1e18))
-	if err != nil {
-		t.Errorf("Failed to create call data: %v", err)
-	}
-	handlers := []common.Address{
-		common.HexToAddress("0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"),
-	}
-	datas := [][]byte{
-		mintData,
-	}
+	actions := new(Actions)
 
-	err = defiClient.BatchExecute(handlers, datas)
+	actions.Add(
+		defiClient.Compound().SupplyActions(big.NewInt(1e18), ETH),
+	)
+
+	defiClient.executeActions(actions)
+
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
 	}
@@ -206,46 +190,27 @@ func TestInteractWithFurucomboWithCompound(t *testing.T) {
 
 }
 
-func TestInteractWithFurucomboWithCompoundERC20(t *testing.T) {
+func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
 	if err != nil {
 		log.Fatalf("Failed to get balance: %v", err)
 	}
-	parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
-	if err != nil {
-		t.Errorf("Failed to create ABI: %v", err)
-	}
-	injectData, err := parsed.Pack(
-		"inject", []common.Address{CoinToAddressMap[DAI]}, []*big.Int{big.NewInt(1e18)})
 
-	if err != nil {
-		t.Errorf("Failed to create call data: %v", err)
-	}
-	parsed, err = abi.JSON(strings.NewReader(hctoken.HctokenABI))
-	if err != nil {
-		t.Errorf("Failed to create ABI: %v", err)
-	}
-	mintData, err := parsed.Pack("mint", CoinToCompoundMap[DAI], big.NewInt(1e18))
-	if err != nil {
-		t.Errorf("Failed to create call data: %v", err)
-	}
-	handlers := []common.Address{
-		common.HexToAddress("0x914490a362f4507058403a99e28bdf685c5c767f"),
-		common.HexToAddress("0x8973D623d883c5641Dd3906625Aac31cdC8790c5"),
-	}
-	datas := [][]byte{
-		injectData,
-		mintData,
-	}
+	actions := new(Actions)
 
-	err = defiClient.BatchExecute(handlers, datas)
+	actions.Add(
+		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
+	)
+
+	defiClient.executeActions(actions)
+
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
 	}
 
-	afterCDai, err := defiClient.Compound().BalanceOf(ETH)
+	afterCDai, err := defiClient.Compound().BalanceOf(DAI)
 	if err != nil {
 		t.Errorf("Failed to get balance: %v", err)
 	}
