@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
@@ -80,10 +79,18 @@ const (
 	yETHVaultAddr           string = "0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
+	// Furucombo related addresses
 	furucomboAddr           string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
 	hCEtherAddr             string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
 	hErcInAddr              string = "0x914490a362f4507058403a99e28bdf685c5c767f"
 	hCTokenAddr             string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
+	hMakerDaoAddr           string = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
+	hUniswapAddr            string = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
+	hCurveAddr              string = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
+	hYearnAddr              string = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
+	hAaveAddr               string = "0xf579b009748a62b1978639d6b54259f8dc915229"
+	hOneInch                string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
+	hFunds                  string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -152,12 +159,18 @@ func (c *ActualClient) executeActions(actions *Actions) error {
 	if err != nil {
 		return nil
 	}
+
+	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
+	if err != nil {
+		return err
+	}
+
 	opts := &bind.TransactOpts{
 		Value:    totalEthers,
 		Signer:   c.opts.Signer,
 		From:     c.opts.From,
 		GasLimit: 5000000,
-		GasPrice: big.NewInt(20),
+		GasPrice: gasPrice,
 	}
 	tx, err := proxy.BatchExec(opts, handlers, datas)
 	if err != nil {
