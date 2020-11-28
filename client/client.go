@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/524119574/go-defi/binding/haave"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
 
@@ -80,17 +81,17 @@ const (
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
 	// Furucombo related addresses
-	furucomboAddr           string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
-	hCEtherAddr             string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
-	hErcInAddr              string = "0x914490a362f4507058403a99e28bdf685c5c767f"
-	hCTokenAddr             string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
-	hMakerDaoAddr           string = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
-	hUniswapAddr            string = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
-	hCurveAddr              string = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
-	hYearnAddr              string = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
-	hAaveAddr               string = "0xf579b009748a62b1978639d6b54259f8dc915229"
-	hOneInch                string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
-	hFunds                  string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
+	furucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
+	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
+	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
+	hMakerDaoAddr string = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
+	hUniswapAddr  string = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
+	hCurveAddr    string = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
+	hYearnAddr    string = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
+	hAaveAddr     string = "0xf579b009748a62b1978639d6b54259f8dc915229"
+	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
+	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -492,7 +493,7 @@ func (c *CompoundClient) supplyActionsETH(size *big.Int, coin coinType) *Actions
 	if err != nil {
 		fmt.Errorf("Failed to create ABI: %v", err)
 	}
-	data, err := parsed.Pack("mint", big.NewInt(1e18))
+	data, err := parsed.Pack("mint", size)
 	if err != nil {
 		fmt.Errorf("Failed to create call data: %v", err)
 	}
@@ -513,7 +514,7 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 		fmt.Errorf("Failed to create ABI: %v", err)
 	}
 	injectData, err := parsed.Pack(
-		"inject", []common.Address{CoinToAddressMap[DAI]}, []*big.Int{big.NewInt(1e18)})
+		"inject", []common.Address{CoinToAddressMap[DAI]}, []*big.Int{size})
 
 	if err != nil {
 		fmt.Errorf("Failed to create call data: %v", err)
@@ -522,7 +523,7 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 	if err != nil {
 		fmt.Errorf("Failed to create ABI: %v", err)
 	}
-	mintData, err := parsed.Pack("mint", CoinToCompoundMap[DAI], big.NewInt(1e18))
+	mintData, err := parsed.Pack("mint", CoinToCompoundMap[DAI], size)
 	if err != nil {
 		fmt.Errorf("Failed to create call data: %v", err)
 	}
@@ -537,6 +538,89 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 				HandlerAddr:  common.HexToAddress(hCTokenAddr),
 				Data:         mintData,
 				ethersNeeded: big.NewInt(0),
+			},
+		},
+	}
+}
+
+func (c *CompoundClient) RedeemActions(size *big.Int, coin coinType) *Actions {
+	if coin == ETH {
+		return c.redeemActionsETH(size, coin)
+	} else {
+		return c.redeemActionsERC20(size, coin)
+	}
+}
+
+func (c *CompoundClient) redeemActionsETH(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcether.HcetherABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	data, err := parsed.Pack("redeem", size)
+	if err != nil {
+		fmt.Errorf("Failed to create call data: %v", err)
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hCEtherAddr),
+				Data:         data,
+				ethersNeeded: size,
+			},
+		},
+	}
+}
+
+func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hctoken.HctokenABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	mintData, err := parsed.Pack("redeem", CoinToCompoundMap[DAI], size)
+	if err != nil {
+		fmt.Errorf("Failed to create call data: %v", err)
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hCTokenAddr),
+				Data:         mintData,
+				ethersNeeded: big.NewInt(0),
+			},
+		},
+	}
+}
+
+func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Actions) *Actions {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].HandlerAddr)
+		datas = append(datas, actions.Actions[i].Data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+	}
+
+	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	payloadData, err := proxy.Pack("execs", handlers, datas)
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	haave, err := abi.JSON(strings.NewReader(haave.HaaveABI))
+	if err != nil {
+		fmt.Errorf("Failed to create ABI: %v", err)
+	}
+	// skip the first 4 bytes to omit the function selector
+	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hAaveAddr),
+				Data:         flashLoanData,
+				ethersNeeded: totalEthers,
 			},
 		},
 	}

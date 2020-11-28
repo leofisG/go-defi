@@ -220,3 +220,46 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 	}
 
 }
+
+func TestInteractWithFurucomboFlashLoan(t *testing.T) {
+	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
+
+	if err != nil {
+		log.Fatalf("Failed to get balance: %v", err)
+	}
+
+	actions := new(Actions)
+	flashLoanActions := new(Actions)
+
+	// TODO: use spread operator
+	flashLoanActions.Add(
+		defiClient.Compound().SupplyActions(big.NewInt(5000000000000000000), DAI),
+	)
+	flashLoanActions.Add(
+		defiClient.Compound().RedeemActions(big.NewInt(5000000000000000000), DAI),
+	)
+
+	actions.Add(
+		defiClient.Aave().FlashLoanActions(
+			big.NewInt(5000000000000000000),
+			DAI,
+			flashLoanActions,
+		),
+	)
+
+	defiClient.executeActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterCDai, err := defiClient.Compound().BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Failed to get balance: %v", err)
+	}
+
+	if afterCDai.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("cDai minting is not successful via Furucombo: %v %v", afterCDai, beforeCDai)
+	}
+
+}
