@@ -221,7 +221,45 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 
 }
 
+func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
+	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	// approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
+
+	if err != nil {
+		log.Fatalf("Failed to get balance: %v", err)
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
+	)
+
+	actions.Add(
+		defiClient.Compound().RedeemActions(big.NewInt(100000), DAI),
+	)
+
+	defiClient.executeActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterCDai, err := defiClient.Compound().BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Failed to get balance: %v", err)
+	}
+
+	if afterCDai.Cmp(beforeCDai) != 1 {
+		t.Errorf("cDai minting is not successful via Furucombo: %v %v", afterCDai, beforeCDai)
+	}
+
+}
+
 func TestInteractWithFurucomboFlashLoan(t *testing.T) {
+	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
 	if err != nil {
@@ -233,15 +271,15 @@ func TestInteractWithFurucomboFlashLoan(t *testing.T) {
 
 	// TODO: use spread operator
 	flashLoanActions.Add(
-		defiClient.Compound().SupplyActions(big.NewInt(5000000000000000000), DAI),
+		defiClient.Compound().SupplyActions(big.NewInt(10000000), DAI),
 	)
 	flashLoanActions.Add(
-		defiClient.Compound().RedeemActions(big.NewInt(5000000000000000000), DAI),
+		defiClient.Compound().RedeemActions(big.NewInt(50), DAI),
 	)
 
 	actions.Add(
 		defiClient.Aave().FlashLoanActions(
-			big.NewInt(5000000000000000000),
+			big.NewInt(10000000),
 			DAI,
 			flashLoanActions,
 		),
