@@ -10,6 +10,8 @@ import (
 	"github.com/524119574/go-defi/binding/haave"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
+	"github.com/524119574/go-defi/binding/huniswap"
+	"github.com/524119574/go-defi/binding/hkyber"
 
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -100,6 +102,7 @@ const (
 	hAaveAddr     string = "0xf579b009748a62b1978639d6b54259f8dc915229"
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
+	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -178,8 +181,7 @@ func (c *ActualClient) executeActions(actions *Actions) error {
 		if err != nil {
 			return err
 		}
-		injectData, err := parsed.Pack(
-			"inject", approvalTokens, approvalAmounts)
+		injectData, err := parsed.Pack("inject", approvalTokens, approvalAmounts)
 
 		if err != nil {
 			return err
@@ -355,6 +357,76 @@ func (c *UniswapClient) swapTokenToETH(size int64, quoteCurrency coinType, recei
 	bind.WaitMined(context.Background(), c.client.conn, tx)
 	return nil
 }
+
+// SwapActions create a new swap action
+func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
+	var callData []byte
+	var ethersNeeded = big.NewInt(0)
+	if quoteCurrency == ETH {
+		ethersNeeded = size
+		callData = c.swapETHToTokenData(size, baseCurrency)
+	} else {
+		if baseCurrency == ETH {
+			callData = c.swapTokenToETHData(size, quoteCurrency)
+		} else {
+			callData = c.swapTokenToTokenData(size, baseCurrency, quoteCurrency)
+		}
+	}
+
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hUniswapAddr),
+				Data:         callData,
+				EthersNeeded: ethersNeeded,
+			},
+		},
+	}
+}
+
+func (c *UniswapClient) swapETHToTokenData(size *big.Int, baseCurrency coinType) []byte {
+	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack(
+		"swapExactETHForTokens", size, big.NewInt(0), []common.Address{CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]})
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+func (c *UniswapClient) swapTokenToETHData(size *big.Int, quoteCurrency coinType) []byte {
+	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack(
+		"swapExactTokensForETH", size, big.NewInt(0), []common.Address{CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH]})
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+func (c *UniswapClient) swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency coinType) []byte {
+	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack(
+		"swapExactTokensForTokens", size, big.NewInt(0), []common.Address{
+			CoinToAddressMap[quoteCurrency], CoinToAddressMap[ETH], CoinToAddressMap[baseCurrency]})
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+
+
+
 
 // Compound---------------------------------------------------------------------
 
@@ -623,11 +695,11 @@ func (c *CompoundClient) redeemActionsETH(size *big.Int, coin coinType) *Actions
 func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(hctoken.HctokenABI))
 	if err != nil {
-		fmt.Errorf("Failed to create ABI: %v", err)
+		return nil
 	}
 	redeemData, err := parsed.Pack("redeem", CoinToCompoundMap[coin], size)
 	if err != nil {
-		fmt.Errorf("Failed to create call data: %v", err)
+		return nil
 	}
 	return &Actions{
 		Actions: []Action{
@@ -655,18 +727,19 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 
 	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
 	if err != nil {
-		fmt.Errorf("Failed to create ABI: %v", err)
+		return nil
 	}
 	payloadData, err := proxy.Pack("execs", handlers, datas)
 	if err != nil {
-		fmt.Errorf("Failed to create ABI: %v", err)
+		return nil
 	}
 	haave, err := abi.JSON(strings.NewReader(haave.HaaveABI))
 	if err != nil {
-		fmt.Errorf("Failed to create ABI: %v", err)
+		return nil
 	}
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
+	fmt.Printf("flash loan data: %v", hex.EncodeToString(flashLoanData))
 	return &Actions{
 		Actions: []Action{
 			{
@@ -867,13 +940,67 @@ type ReserveData struct {
 	UsageAsCollateralEnabled bool
 }
 
-// Borrow borrow money from lending pool
+// GetUserReserveData get the reserve data
 func (c *AaveClient) GetUserReserveData(addr common.Address, user common.Address) (ReserveData, error) {
 	data, err := c.lendingPool.GetUserReserveData(nil, addr, user)
 	if err != nil {
 		return ReserveData{}, err
 	}
 	return data, nil
+}
+
+// Kyberswap----------------------------------------------------------------------
+
+// KyberswapClient struct
+type KyberswapClient struct {
+	client *ActualClient
+}
+
+// Kyberswap returns a Kyberswap client
+func (c *ActualClient) Kyberswap() *KyberswapClient {
+	kyberClient := new(KyberswapClient)
+	kyberClient.client = c
+	return kyberClient
+}
+
+// SwapActions creates a swap action
+func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
+	var (
+		data []byte
+		err error
+		ethersNeeded *big.Int = big.NewInt(0)
+	)
+
+	parsed, err := abi.JSON(strings.NewReader(hkyber.HkyberABI))
+	if err != nil {
+		return nil
+	}
+
+	if (quoteCurrency == ETH) {
+		ethersNeeded = size
+		data, err = parsed.Pack("swapEtherToToken", size, CoinToAddressMap[baseCurrency], big.NewInt(0))
+	} else {
+		if (baseCurrency == ETH) {
+			data, err = parsed.Pack("swapTokenToEther", CoinToAddressMap[baseCurrency], size, big.NewInt(0))
+		} else {
+			data, err = parsed.Pack("swapTokenToToken", CoinToAddressMap[baseCurrency], size, CoinToAddressMap[quoteCurrency], big.NewInt(0))
+		}
+	}
+
+	if err != nil {
+		return nil
+	}
+
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hKyberAddr),
+				Data:         data,
+				EthersNeeded: ethersNeeded,
+			},
+		},
+	}
+
 }
 
 // utility------------------------------------------------------------------------

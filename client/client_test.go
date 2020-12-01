@@ -284,3 +284,63 @@ func TestInteractWithFurucomboFlashLoan(t *testing.T) {
 	}
 
 }
+
+func TestInteractWithFurucomboUniswap(t *testing.T) {
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	if err != nil {
+		t.Errorf("Error getting ETH balance")
+	}
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Uniswap().SwapActions(big.NewInt(1e18), DAI, ETH),
+	)
+
+	err = defiClient.executeActions(actions)
+
+	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	afterDAI, err := defiClient.BalanceOf(DAI)
+
+	if beforeETH.Cmp(afterETH) != 1 {
+		t.Errorf("ETH balance not decreasing.")
+	}
+	if afterDAI.Cmp(beforeDAI) != 1 {
+		t.Errorf("DAI hasn't increased!")
+	}
+
+}
+
+func TestInteractWithFurucomboKyber(t *testing.T) {
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	if err != nil {
+		t.Errorf("Error getting ETH balance")
+	}
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Kyberswap().SwapActions(big.NewInt(1e18), DAI, ETH),
+	)
+
+	err = defiClient.executeActions(actions)
+
+	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	afterDAI, err := defiClient.BalanceOf(DAI)
+
+	if beforeETH.Cmp(afterETH) != 1 {
+		t.Errorf("ETH balance not decreasing.")
+	}
+	if afterDAI.Cmp(beforeDAI) != 1 {
+		t.Errorf("DAI hasn't increased!")
+	}
+
+}
