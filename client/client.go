@@ -221,6 +221,30 @@ func (c *ActualClient) executeActions(actions *Actions) error {
 
 }
 
+// SupplyFundActions transfer a certain amount of fund to the proxy
+func (c *ActualClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
+	if err != nil {
+		return nil
+	}
+	injectData, err := parsed.Pack(
+		"inject", []common.Address{CoinToAddressMap[coin]}, []*big.Int{size})
+
+	if err != nil {
+		return nil
+	}
+
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hFunds),
+				Data:         injectData,
+				EthersNeeded: big.NewInt(0),
+			},
+		},
+	}
+}
+
 // Action represents one action, e.g. supply to Compound, swap on Uniswap
 type Action struct {
 	HandlerAddr         common.Address
@@ -560,7 +584,7 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 				HandlerAddr:         common.HexToAddress(hCTokenAddr),
 				Data:                mintData,
 				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToAddressMap[DAI],
+				ApprovalToken:       CoinToAddressMap[coin],
 				ApprovalTokenAmount: size,
 			},
 		},
@@ -643,7 +667,6 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	}
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
-	fmt.Printf("%v", hex.EncodeToString(payloadData[4:]))
 	return &Actions{
 		Actions: []Action{
 			{

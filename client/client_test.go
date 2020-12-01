@@ -73,6 +73,7 @@ func TestInteractWithCompound(t *testing.T) {
 
 func TestInteractWithUniswap(t *testing.T) {
 	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	beforeDAI, err := defiClient.BalanceOf(DAI)
 
 	err = defiClient.Uniswap().Swap(1e18, DAI, ETH, fromAddr)
 	if err != nil {
@@ -85,7 +86,7 @@ func TestInteractWithUniswap(t *testing.T) {
 	if beforeETH.Cmp(afterETH) != 1 {
 		t.Errorf("ETH balance not decreasing.")
 	}
-	if afterDAI.Cmp(big.NewInt(0)) != 1 {
+	if afterDAI.Cmp(beforeDAI) != 1 {
 		t.Errorf("Dai hasn't increased!")
 	}
 
@@ -223,7 +224,8 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 
 func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
-	// approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
 	if err != nil {
@@ -259,45 +261,26 @@ func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 
 func TestInteractWithFurucomboFlashLoan(t *testing.T) {
 	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
-	approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
-	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
-
-	if err != nil {
-		log.Fatalf("Failed to get balance: %v", err)
-	}
 
 	actions := new(Actions)
 	flashLoanActions := new(Actions)
 
-	// TODO: use spread operator
 	flashLoanActions.Add(
-		defiClient.Compound().SupplyActions(big.NewInt(10000000), DAI),
-	)
-	flashLoanActions.Add(
-		defiClient.Compound().RedeemActions(big.NewInt(50), DAI),
+		defiClient.SupplyFundActions(big.NewInt(1e18), DAI),
 	)
 
 	actions.Add(
 		defiClient.Aave().FlashLoanActions(
-			big.NewInt(10000000),
+			big.NewInt(5e18),
 			DAI,
 			flashLoanActions,
 		),
 	)
 
-	defiClient.executeActions(actions)
+	err := defiClient.executeActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
-	}
-
-	afterCDai, err := defiClient.Compound().BalanceOf(DAI)
-	if err != nil {
-		t.Errorf("Failed to get balance: %v", err)
-	}
-
-	if afterCDai.Cmp(big.NewInt(0)) != 0 {
-		t.Errorf("cDai minting is not successful via Furucombo: %v %v", afterCDai, beforeCDai)
 	}
 
 }
