@@ -74,6 +74,8 @@ const (
 	WBTC coinType = iota
 	// ZRX weiwu
 	ZRX coinType = iota
+	// BUSD weiwu
+	BUSD coinType = iota
 
 	// cToken
 	cETH = iota
@@ -116,6 +118,7 @@ var CoinToAddressMap = map[coinType]common.Address{
 	cETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	cDAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	cUSDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
+	BUSD:  common.HexToAddress("0x4Fabb145d64652a948d72533023f6E7A623C7C53"),
 }
 
 // CoinToCompoundMap returns a mapping from coin to compound address

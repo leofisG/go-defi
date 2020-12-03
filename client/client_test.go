@@ -344,3 +344,45 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 	}
 
 }
+
+func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
+	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(2e18))
+	beforecDAI, err := defiClient.BalanceOf(cDAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+
+	actions := new(Actions)
+	flashLoanActions := new(Actions)
+
+	flashLoanActions.Add(
+		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
+	)
+	flashLoanActions.Add(
+		defiClient.SupplyFundActions(big.NewInt(2e18), DAI),
+	)
+
+	flashLoanActions.Add(
+		defiClient.Compound().RedeemActions(big.NewInt(1), DAI),
+	)
+
+	actions.Add(
+		defiClient.Aave().FlashLoanActions(
+			big.NewInt(1e18),
+			DAI,
+			flashLoanActions,
+		),
+	)
+
+	err = defiClient.executeActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	aftercDAI, err := defiClient.BalanceOf(cDAI)
+	if beforecDAI.Cmp(aftercDAI) != -1 {
+		t.Errorf("cdai balance not increasing.")
+	}
+}
