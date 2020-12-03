@@ -89,7 +89,9 @@ func main() {
     - Swap
 - Kyberswap
     - Swap
-- Yearn (TODO)
+- Yearn
+	- Supply to Vault
+	- Withdraw from Vault
 - Curve (TODO)
 - 1inch (TODO)
 
