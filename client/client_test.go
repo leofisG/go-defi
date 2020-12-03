@@ -174,7 +174,7 @@ func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 		defiClient.Compound().SupplyActions(big.NewInt(1e18), ETH),
 	)
 
-	defiClient.executeActions(actions)
+	defiClient.ExecuteActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
@@ -205,7 +205,7 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
 	)
 
-	defiClient.executeActions(actions)
+	defiClient.ExecuteActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
@@ -242,7 +242,7 @@ func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 		defiClient.Compound().RedeemActions(big.NewInt(100000), DAI),
 	)
 
-	defiClient.executeActions(actions)
+	defiClient.ExecuteActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
@@ -277,7 +277,7 @@ func TestInteractWithFurucomboFlashLoan(t *testing.T) {
 		),
 	)
 
-	err := defiClient.executeActions(actions)
+	err := defiClient.ExecuteActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)
@@ -301,7 +301,7 @@ func TestInteractWithFurucomboUniswap(t *testing.T) {
 		defiClient.Uniswap().SwapActions(big.NewInt(1e18), DAI, ETH),
 	)
 
-	err = defiClient.executeActions(actions)
+	err = defiClient.ExecuteActions(actions)
 
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 	afterDAI, err := defiClient.BalanceOf(DAI)
@@ -331,7 +331,7 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 		defiClient.Kyberswap().SwapActions(big.NewInt(1e18), DAI, ETH),
 	)
 
-	err = defiClient.executeActions(actions)
+	err = defiClient.ExecuteActions(actions)
 
 	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 	afterDAI, err := defiClient.BalanceOf(DAI)
@@ -374,7 +374,7 @@ func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
 		),
 	)
 
-	err = defiClient.executeActions(actions)
+	err = defiClient.ExecuteActions(actions)
 
 	if err != nil {
 		t.Errorf("Failed to interact with Furucombo: %v", err)

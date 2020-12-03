@@ -165,7 +165,7 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
-func (c *ActualClient) executeActions(actions *Actions) error {
+func (c *ActualClient) ExecuteActions(actions *Actions) error {
 	handlers := []common.Address{}
 	datas := make([][]byte, 0)
 	totalEthers := big.NewInt(0)
