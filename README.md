@@ -6,7 +6,8 @@ This library support flash loan, so you can use this library to do things like a
 
 ## Getting Started
 Initialize a flash loan
-```
+
+```go
 package main
 
 import (
