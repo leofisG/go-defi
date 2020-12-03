@@ -160,6 +160,43 @@ func TestInteractWithYearn(t *testing.T) {
 	}
 }
 
+func TestInteractWithFurucomboWithYearn(t *testing.T) {
+	beforeETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+
+	actions := new(Actions)
+	actions.Add(
+		defiClient.Yearn().AddLiquidityActions(big.NewInt(1e18), ETH),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+	if err != nil {
+		t.Errorf("Failed to add liquidity in yearn: %v", err)
+	}
+
+	afterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+	if beforeETH.Cmp(afterETH) != 1 {
+		t.Errorf("ETH balance not decreasing.")
+	}
+
+	actions = new(Actions)
+	actions.Add(
+		defiClient.Yearn().RemoveLiquidityActions(big.NewInt(1e18), ETH),
+	)
+	Approve(defiClient, yWETH, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	err = defiClient.ExecuteActions(actions)
+	if err != nil {
+		t.Errorf("Failed to remove liquidity in yearn: %v", err)
+	}
+
+	// Not sure why this is not increasing...
+	afterafterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
+
+	if afterETH.Cmp(afterafterETH) != -1 {
+		t.Errorf("ETH balance not increasing. %v %v, %v", afterETH, afterafterETH, actions.Actions[0].Data)
+	}
+}
+
+
 func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 
 	beforeCETH, err := defiClient.Compound().BalanceOf(ETH)
