@@ -10,8 +10,8 @@ import (
 	"github.com/524119574/go-defi/binding/haave"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
-	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hkyber"
+	"github.com/524119574/go-defi/binding/huniswap"
 
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -93,7 +93,9 @@ const (
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
 	// Furucombo related addresses
-	furucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+
+	// FurucomboAddr is the address of the Furucombo proxy
+	FurucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
 	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
 	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
 	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
@@ -194,7 +196,7 @@ func (c *ActualClient) executeActions(actions *Actions) error {
 		datas = append([][]byte{injectData}, datas...)
 	}
 
-	proxy, err := furucombo.NewFurucombo(common.HexToAddress(furucomboAddr), c.conn)
+	proxy, err := furucombo.NewFurucombo(common.HexToAddress(FurucomboAddr), c.conn)
 	if err != nil {
 		return nil
 	}
@@ -298,7 +300,7 @@ func (c *UniswapClient) Swap(size int64, baseCurrency coinType, quoteCurrency co
 	if quoteCurrency == ETH {
 		return c.swapETHToToken(size, baseCurrency, receipient)
 	} else {
-		err := approve(c.client, quoteCurrency, common.HexToAddress(uniswapAddr), big.NewInt(size))
+		err := Approve(c.client, quoteCurrency, common.HexToAddress(uniswapAddr), big.NewInt(size))
 		if err != nil {
 			return err
 		}
@@ -427,10 +429,6 @@ func (c *UniswapClient) swapTokenToTokenData(size *big.Int, baseCurrency coinTyp
 	return data
 }
 
-
-
-
-
 // Compound---------------------------------------------------------------------
 
 // CompoundClient is an instance of Compound protocol.
@@ -472,7 +470,7 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 
 		tx, err = cETHContract.Mint(opts)
 	case BAT, COMP, DAI, REP, SAI, UNI, USDC, USDT, WBTC, ZRX:
-		err = approve(c.client, coin, cTokenAddr, big.NewInt(amount))
+		err = Approve(c.client, coin, cTokenAddr, big.NewInt(amount))
 		if err != nil {
 			return err
 		}
@@ -822,7 +820,7 @@ func (c *YearnClient) addLiquidity(size *big.Int, coin coinType) error {
 		if !ok {
 			return fmt.Errorf("No corresponding vault found for: %v ", coin)
 		}
-		err = approve(c.client, coin, vaultAddr, size)
+		err = Approve(c.client, coin, vaultAddr, size)
 		yvault, err := yvault.NewYvault(vaultAddr, c.client.conn)
 		if err != nil {
 			return fmt.Errorf("Error getting weth contract")
@@ -914,7 +912,7 @@ func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 	}
 
 	if coin != ETH {
-		approve(c.client, coin, common.HexToAddress(aaveLendingPoolCoreAddr), size)
+		Approve(c.client, coin, common.HexToAddress(aaveLendingPoolCoreAddr), size)
 	}
 
 	tx, err := c.lendingPool.Deposit(opts, CoinToAddressMap[coin], size, 0)
@@ -930,6 +928,7 @@ func (c *AaveClient) Borrow(size *big.Int, coin coinType, interestRate rateModel
 	return nil
 }
 
+// ReserveData is a struct described the status of Aave lending pool
 type ReserveData struct {
 	CurrentATokenBalance     *big.Int
 	CurrentBorrowBalance     *big.Int
@@ -969,8 +968,8 @@ func (c *ActualClient) Kyberswap() *KyberswapClient {
 // SwapActions creates a swap action
 func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
 	var (
-		data []byte
-		err error
+		data         []byte
+		err          error
 		ethersNeeded *big.Int = big.NewInt(0)
 	)
 
@@ -979,11 +978,11 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 		return nil
 	}
 
-	if (quoteCurrency == ETH) {
+	if quoteCurrency == ETH {
 		ethersNeeded = size
 		data, err = parsed.Pack("swapEtherToToken", size, CoinToAddressMap[baseCurrency], big.NewInt(0))
 	} else {
-		if (baseCurrency == ETH) {
+		if baseCurrency == ETH {
 			data, err = parsed.Pack("swapTokenToEther", CoinToAddressMap[baseCurrency], size, big.NewInt(0))
 		} else {
 			data, err = parsed.Pack("swapTokenToToken", CoinToAddressMap[baseCurrency], size, CoinToAddressMap[quoteCurrency], big.NewInt(0))
@@ -1007,7 +1006,7 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 }
 
 // utility------------------------------------------------------------------------
-func approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
+func Approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
 	erc20Contract, err := erc20.NewErc20(CoinToAddressMap[coin], client.conn)
 	if err != nil {
 		return err

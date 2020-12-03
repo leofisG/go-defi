@@ -192,7 +192,7 @@ func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 }
 
 func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
-	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
 	if err != nil {
@@ -223,8 +223,8 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 }
 
 func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
-	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
-	approve(defiClient, cDAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, cDAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
 
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
@@ -260,7 +260,7 @@ func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 }
 
 func TestInteractWithFurucomboFlashLoan(t *testing.T) {
-	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
 
 	actions := new(Actions)
 	flashLoanActions := new(Actions)
@@ -346,12 +346,11 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 }
 
 func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
-	approve(defiClient, DAI, common.HexToAddress(furucomboAddr), big.NewInt(2e18))
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
 	beforecDAI, err := defiClient.BalanceOf(cDAI)
 	if err != nil {
 		t.Errorf("Error getting DAI balance")
 	}
-
 
 	actions := new(Actions)
 	flashLoanActions := new(Actions)
