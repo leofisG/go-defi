@@ -97,3 +97,7 @@ func main() {
 
 ## Contact
 Leonard Ge [Twitter](https://twitter.com/ge_leonard)
+Kaihua Qin
+Liyi Zhou
+Arthur Gervais
+
