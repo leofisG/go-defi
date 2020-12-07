@@ -94,6 +94,7 @@ func main() {
 	- Withdraw from Vault
 - Curve (TODO)
 - 1inch (TODO)
+- MakerDao (TODO)
 
 ## Contact
 Leonard Ge [Twitter](https://twitter.com/ge_leonard)
