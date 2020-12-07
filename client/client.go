@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/524119574/go-defi/binding/hctoken"
 	"github.com/524119574/go-defi/binding/hkyber"
 	"github.com/524119574/go-defi/binding/huniswap"
+	"github.com/524119574/go-defi/binding/hyearn"
 
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -83,6 +85,8 @@ const (
 	cDAI = iota
 
 	cUSDC = iota
+
+	yWETH = iota
 )
 
 const (
@@ -121,6 +125,7 @@ var CoinToAddressMap = map[coinType]common.Address{
 	cDAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	cUSDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
 	BUSD:  common.HexToAddress("0x4Fabb145d64652a948d72533023f6E7A623C7C53"),
+	yWETH: common.HexToAddress("0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"),
 }
 
 // CoinToCompoundMap returns a mapping from coin to compound address
@@ -165,6 +170,7 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
+// ExecuteActions send one transaction for all the Defi interactions
 func (c *ActualClient) ExecuteActions(actions *Actions) error {
 	handlers := []common.Address{}
 	datas := make([][]byte, 0)
@@ -261,13 +267,18 @@ type Action struct {
 	ApprovalTokenAmount *big.Int
 }
 
+// Actions represents a list of Action
 type Actions struct {
 	Actions []Action
 }
 
 // Add adds actions together
-func (actions *Actions) Add(newActions *Actions) {
+func (actions *Actions) Add(newActions *Actions) error {
+	if (newActions == nil) {
+		return fmt.Errorf("new action is nil")
+	}
 	actions.Actions = append(actions.Actions, newActions.Actions...)
+	return nil
 }
 
 // Uniswap---------------------------------------------------------------------
@@ -881,6 +892,115 @@ func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
 	return nil
 }
 
+// AddLiquidityActions creates an add liquidity action to Yearn
+func (c *YearnClient) AddLiquidityActions(size *big.Int, coin coinType) *Actions {
+	if (coin == ETH) {
+		return c.addLiquidityActionsETH(size, coin)
+	} else {
+		return c.addLiquidityActionsERC20(size, coin)
+	}
+}
+
+func (c *YearnClient) addLiquidityActionsETH(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hyearn.HyearnABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack("depositETH", size, common.HexToAddress(yETHVaultAddr))
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hYearnAddr),
+				Data:         data,
+				EthersNeeded: size,
+			},
+		},
+	}
+}
+
+func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hyearn.HyearnABI))
+	if err != nil {
+		return nil
+	}
+	tokenAddr := CoinToAddressMap[coin]
+	vaultAddr, ok := c.tokenToVault[tokenAddr]
+	if !ok {
+		return nil
+	}
+	data, err := parsed.Pack("deposit", vaultAddr, size)
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hYearnAddr),
+				Data:         data,
+				EthersNeeded: big.NewInt(0),
+				ApprovalToken: CoinToAddressMap[coin],
+				ApprovalTokenAmount: size,
+			},
+		},
+	}
+}
+
+// RemoveLiquidityActions creates a remove liquidity action to Yearn
+func (c *YearnClient) RemoveLiquidityActions(size *big.Int, coin coinType) *Actions {
+	if (coin == ETH) {
+		return c.removeLiquidityActionsETH(size, coin)
+	} else {
+		return c.removeLiquidityActionsERC20(size, coin)
+	}
+}
+
+func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hyearn.HyearnABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack("withdrawETH", common.HexToAddress(yETHVaultAddr), size)
+	if err != nil {
+		return nil
+	}
+	log.Printf("remove: %v", hex.EncodeToString(data))
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hYearnAddr),
+				Data:         data,
+				EthersNeeded: big.NewInt(0),
+				ApprovalToken: common.HexToAddress(yETHVaultAddr),
+				ApprovalTokenAmount: size,
+			},
+		},
+	}
+}
+
+func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hyearn.HyearnABI))
+	if err != nil {
+		return nil
+	}
+	data, err := parsed.Pack("withdraw", common.HexToAddress(yETHVaultAddr), size)
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hYearnAddr),
+				Data:         data,
+				EthersNeeded: big.NewInt(0),
+			},
+		},
+	}
+}
+
+
 // Aave----------------------------------------------------------------------------
 
 // AaveClient is an instance of Aave protocol.
@@ -1006,6 +1126,8 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 }
 
 // utility------------------------------------------------------------------------
+
+// Approve approves ERC-20 token transfer
 func Approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
 	erc20Contract, err := erc20.NewErc20(CoinToAddressMap[coin], client.conn)
 	if err != nil {
