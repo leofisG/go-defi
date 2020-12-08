@@ -97,8 +97,8 @@ func main() {
 - MakerDao (TODO)
 
 ## Contact
-Leonard Ge [Twitter](https://twitter.com/ge_leonard)
-Kaihua Qin
-Liyi Zhou
-Arthur Gervais
+- Leonard Ge [Twitter](https://twitter.com/ge_leonard)
+- Kaihua Qin
+- Liyi Zhou
+- Arthur Gervais
 
