@@ -422,3 +422,29 @@ func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
 		t.Errorf("cdai balance not increasing.")
 	}
 }
+
+func TestInteractWithFurucomboMaker(t *testing.T) {
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	collateralAmount := big.NewInt(0)
+	collateralAmount.SetString("1000000000000000000000", 10)
+	actions.Add(
+		defiClient.Maker().GenerateDaiAction(big.NewInt(5e18), collateralAmount, ETH),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != -1 {
+		t.Errorf("dai balance not increasing: %v, %v.", beforeDAI, afterDAI)
+	}
+}

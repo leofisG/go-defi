@@ -12,6 +12,7 @@ import (
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
 	"github.com/524119574/go-defi/binding/hkyber"
+	"github.com/524119574/go-defi/binding/hmaker"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
 
@@ -79,6 +80,9 @@ const (
 	// BUSD weiwu
 	BUSD coinType = iota
 
+	// YFI
+	YFI coinType = iota
+
 	// cToken
 	cETH = iota
 
@@ -111,6 +115,11 @@ const (
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+
+	// MakerDao related constants
+	// You can find the most up-to-date addresses here: https://changelog.makerdao.com/releases/mainnet/active/contracts.json
+	ethMakerDao string = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+	yfiMakerDao string = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -133,6 +142,18 @@ var CoinToCompoundMap = map[coinType]common.Address{
 	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
+}
+
+var CoinToJoinMap = map[coinType]common.Address{
+	DAI: common.HexToAddress("0x9759A6Ac90977b93B58547b4A71c78317f391A28"),
+	ETH: common.HexToAddress("0x2F0b23f53734252Bda2277357e97e1517d6B042A"),
+	USDC: common.HexToAddress("0xA191e578a6736167326d05c119CE0c90849E84B7"),
+	YFI: common.HexToAddress("0x3ff33d9162aD47660083D7DC4bC02Fb231c81677"),
+}
+
+var CoinToIlkMap = map[coinType][32]byte {
+	ETH: byte32PutString("4554482d41000000000000000000000000000000000000000000000000000000"),
+	YFI: byte32PutString("5946492d41000000000000000000000000000000000000000000000000000000"),
 }
 
 // Client is the new interface
@@ -751,7 +772,6 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	}
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
-	fmt.Printf("flash loan data: %v", hex.EncodeToString(flashLoanData))
 	return &Actions{
 		Actions: []Action{
 			{
@@ -772,7 +792,7 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 
 // yearn-----------------------------------------------------------------------------------------------------
 
-// YearnClient is an instance of Compound protocol.
+// YearnClient is an instance of Yearn protocol.
 type YearnClient struct {
 	client       *ActualClient
 	tokenToVault map[common.Address]common.Address
@@ -966,7 +986,6 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 	if err != nil {
 		return nil
 	}
-	log.Printf("remove: %v", hex.EncodeToString(data))
 	return &Actions{
 		Actions: []Action{
 			{
@@ -1125,6 +1144,58 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 
 }
 
+// MakerDao
+
+// MakerClient is an instance of Maker protocol.
+type MakerClient struct {
+	client       *ActualClient
+}
+
+// Maker creates a new instance of MakerClient
+func (c *ActualClient) Maker() *MakerClient {
+	makerClient := new(MakerClient)
+	makerClient.client = c
+	return makerClient
+}
+
+// GenerateDaiAction generate an action to create a vault and get some DAI
+func (c *MakerClient) GenerateDaiAction(collateralAmount *big.Int, daiAmount *big.Int, collateralType coinType) *Actions {
+	if (collateralType == ETH) {
+		return c.generateDaiActionETH(collateralAmount, daiAmount)
+	} else {
+		return c.generateDaiActionErc20(collateralAmount, daiAmount, collateralType)
+	}
+}
+
+func (c *MakerClient) generateDaiActionETH(collateralAmount *big.Int, daiAmount *big.Int) *Actions {
+
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("openLockETHAndDraw", collateralAmount, CoinToJoinMap[ETH], CoinToJoinMap[DAI], CoinToIlkMap[ETH], daiAmount)
+	log.Printf("hello hello~ %v %v", hex.EncodeToString(data), daiAmount)
+	
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hMakerDaoAddr),
+				Data:         data,
+				EthersNeeded: collateralAmount,
+			},
+		},
+	}
+}
+
+func (c *MakerClient) generateDaiActionErc20(collateralAmount *big.Int, daiAmount *big.Int, collateralType coinType) *Actions {
+	return nil
+}
+
+
 // utility------------------------------------------------------------------------
 
 // Approve approves ERC-20 token transfer
@@ -1142,4 +1213,19 @@ func Approve(client *ActualClient, coin coinType, addr common.Address, size *big
 	tx, err := erc20Contract.Approve(opts, addr, size)
 	bind.WaitMined(context.Background(), client.conn, tx)
 	return nil
+}
+
+func byte32PutString(s string) [32]byte {
+	var res [32]byte
+	decoded, err := hex.DecodeString(s)
+	if err != nil {
+		return res
+	}
+    if len(s) > 32 {
+        copy(res[:], decoded)
+    } else {
+        copy(res[32-len(s):], decoded)
+	}
+	log.Printf("byte: %v", hex.EncodeToString(res[:]))
+    return res
 }
