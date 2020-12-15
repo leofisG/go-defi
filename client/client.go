@@ -11,6 +11,7 @@ import (
 	"github.com/524119574/go-defi/binding/haave"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
+	"github.com/524119574/go-defi/binding/hcurve"
 	"github.com/524119574/go-defi/binding/hkyber"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
@@ -111,6 +112,21 @@ const (
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+
+	// Curve pools
+	cCompound string = "0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56"
+	cUsdt     string = "0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C"
+	cY        string = "0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51"
+	cBusd     string = "0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27"
+	cSusd     string = "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD"
+	cRen      string = "0x93054188d876f558f4a66B2EF1d97d16eDf0895B"
+	cSbtc     string = "0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714"
+	cHbtc     string = "0x4ca9b3063ec5866a4b82e437059d2c43d1be596f"
+	c3Pool    string = "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7"
+	cGusd     string = "0x4f062658eaaf2c1ccf8c8e36d6824cdf41167956"
+	cHusd     string = "0x3eF6A01A0f81D6046290f3e2A8c5b843e738E604"
+	cUsdk     string = "0x3e01dd8a5e1fb3481f0f589056b428fc308af0fb"
+	cUsdn     string = "0x0f9cb53Ebe405d49A0bbdBD291A65Ff571bC83e1"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -200,6 +216,7 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 
 		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
 		datas = append([][]byte{injectData}, datas...)
+		log.Printf("print: %v", hex.EncodeToString(datas[0]))
 	}
 
 	proxy, err := furucombo.NewFurucombo(common.HexToAddress(FurucomboAddr), c.conn)
@@ -274,7 +291,7 @@ type Actions struct {
 
 // Add adds actions together
 func (actions *Actions) Add(newActions *Actions) error {
-	if (newActions == nil) {
+	if newActions == nil {
 		return fmt.Errorf("new action is nil")
 	}
 	actions.Actions = append(actions.Actions, newActions.Actions...)
@@ -894,7 +911,7 @@ func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
 
 // AddLiquidityActions creates an add liquidity action to Yearn
 func (c *YearnClient) AddLiquidityActions(size *big.Int, coin coinType) *Actions {
-	if (coin == ETH) {
+	if coin == ETH {
 		return c.addLiquidityActionsETH(size, coin)
 	} else {
 		return c.addLiquidityActionsERC20(size, coin)
@@ -938,10 +955,10 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
-				ApprovalToken: CoinToAddressMap[coin],
+				HandlerAddr:         common.HexToAddress(hYearnAddr),
+				Data:                data,
+				EthersNeeded:        big.NewInt(0),
+				ApprovalToken:       CoinToAddressMap[coin],
 				ApprovalTokenAmount: size,
 			},
 		},
@@ -950,7 +967,7 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 
 // RemoveLiquidityActions creates a remove liquidity action to Yearn
 func (c *YearnClient) RemoveLiquidityActions(size *big.Int, coin coinType) *Actions {
-	if (coin == ETH) {
+	if coin == ETH {
 		return c.removeLiquidityActionsETH(size, coin)
 	} else {
 		return c.removeLiquidityActionsERC20(size, coin)
@@ -970,10 +987,10 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
-				ApprovalToken: common.HexToAddress(yETHVaultAddr),
+				HandlerAddr:         common.HexToAddress(hYearnAddr),
+				Data:                data,
+				EthersNeeded:        big.NewInt(0),
+				ApprovalToken:       common.HexToAddress(yETHVaultAddr),
 				ApprovalTokenAmount: size,
 			},
 		},
@@ -999,7 +1016,6 @@ func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) 
 		},
 	}
 }
-
 
 // Aave----------------------------------------------------------------------------
 
@@ -1123,6 +1139,73 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 		},
 	}
 
+}
+
+// Curve-------------------------------------------------------------------------
+
+// CurveClient struct
+type CurveClient struct {
+	client *ActualClient
+}
+
+// Curve returns a Curve client
+func (c *ActualClient) Curve() *CurveClient {
+	curveClient := new(CurveClient)
+	curveClient.client = c
+	return curveClient
+}
+
+// ExchangeActions creates exchange action
+func (c *CurveClient) ExchangeActions(handler common.Address, token1Addr common.Address, token2Addr common.Address, i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("exchange", handler, token1Addr, token2Addr, i, j, dx, minDy)
+	log.Printf("error: %v", err)
+
+	if err != nil {
+		return nil
+	}
+	log.Printf("log: %v", hex.EncodeToString(data))
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:         common.HexToAddress(hCurveAddr),
+				Data:                data,
+				EthersNeeded:        big.NewInt(0),
+				ApprovalToken:       token1Addr,
+				ApprovalTokenAmount: dx,
+			},
+		},
+	}
+}
+
+// ExchangeUnderlyingActions creates exchangeUnderlying action
+func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Addr common.Address, token2Addr common.Address, i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("exchangeUnderlying", handler, token1Addr, token2Addr, i, j, dx, minDy)
+	if err != nil {
+		return nil
+	}
+	log.Printf("log: %v", hex.EncodeToString(data))
+
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:         common.HexToAddress(hCurveAddr),
+				Data:                data,
+				EthersNeeded:        big.NewInt(0),
+				ApprovalToken:       token1Addr,
+				ApprovalTokenAmount: dx,
+			},
+		},
+	}
 }
 
 // utility------------------------------------------------------------------------

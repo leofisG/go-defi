@@ -196,7 +196,6 @@ func TestInteractWithFurucomboWithYearn(t *testing.T) {
 	}
 }
 
-
 func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 
 	beforeCETH, err := defiClient.Compound().BalanceOf(ETH)
@@ -420,5 +419,31 @@ func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
 	aftercDAI, err := defiClient.BalanceOf(cDAI)
 	if beforecDAI.Cmp(aftercDAI) != -1 {
 		t.Errorf("cdai balance not increasing.")
+	}
+}
+
+func TestInteractWithFurucomboCurve(t *testing.T) {
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	beforeUSDC, err := defiClient.BalanceOf(USDC)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Curve().ExchangeActions(
+			common.HexToAddress(c3Pool), CoinToAddressMap[DAI], CoinToAddressMap[USDC], big.NewInt(0), big.NewInt(1), big.NewInt(1e18), big.NewInt(1e5)),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterUSDC, err := defiClient.BalanceOf(USDC)
+	if beforeUSDC.Cmp(afterUSDC) != -1 {
+		t.Errorf("USDC balance not increasing. %v %v", beforeUSDC, afterUSDC)
 	}
 }
