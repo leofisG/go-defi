@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at Etherscan.io on 2020-03-26
-*/
-
 pragma solidity 0.5.16;
 
 contract Context {
