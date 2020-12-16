@@ -1,0 +1,68 @@
+{
+	"compiler": {
+		"version": "0.5.16+commit.9c3226ce"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"constant": false,
+				"inputs": [],
+				"name": "postProcess",
+				"outputs": [],
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"methods": {}
+		},
+		"userdoc": {
+			"methods": {}
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"localhost/handlers/HandlerBase.sol": "HandlerBase"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"localhost/Cache.sol": {
+			"keccak256": "0x6f4734b618e7aa709ede8af24e56d931512f309dddc533e33eb887d459b3f273",
+			"urls": [
+				"bzz-raw://5d7fd18ff4a724cccc01b0912ee15d1b667cad7dd63ab071fb77469292d657f3",
+				"dweb:/ipfs/QmbFVvo7Zwqp4vpsKXvchoUntCu7CnWTcTkafL5ZHoDeTm"
+			]
+		},
+		"localhost/Config.sol": {
+			"keccak256": "0x50e0f692062a98222adc78287add5de1f33e37d6772a00b5f5cab2d0377553b8",
+			"urls": [
+				"bzz-raw://c1ad5825ed54578b6c3f4715c05570619673e2621e9ebeaabe2d23e0cd15ebe9",
+				"dweb:/ipfs/QmVfGMsiquLH2QTSsejzjFw7s7p6McgHxCyumZELiYAntY"
+			]
+		},
+		"localhost/handlers/HandlerBase.sol": {
+			"keccak256": "0xf2b89c1ccfc86c0e913ffeb3d874c84458cc5fb4060d945e15fae9f7eaf31e25",
+			"urls": [
+				"bzz-raw://6f711057f3c209b3ed46cf68e04f4a1ac177d121c9f34b713c54625255b3765f",
+				"dweb:/ipfs/QmZPC7cR31oar3CgQGc6DY8t3tPrNhXTRzZKbW1E28fwv3"
+			]
+		},
+		"localhost/lib/libCache.sol": {
+			"keccak256": "0x9943a3d16ea87bd4a08fcfceb148422aabb191a7e04e4e81879ab2bce71b7e5f",
+			"urls": [
+				"bzz-raw://0b38fa034ed06b0e5ff25861dd6ef8f9ba3260f654cc01d551890e3245dffc99",
+				"dweb:/ipfs/Qmbx4qSjA3ADDEygmXgLr3VJPv6fo51xb4pbnqPqBCptRM"
+			]
+		}
+	},
+	"version": 1
+}
