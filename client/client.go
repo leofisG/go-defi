@@ -113,7 +113,7 @@ const (
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
 
-	// Curve pools
+	// Curve pool addresses
 	cCompound string = "0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56"
 	cUsdt     string = "0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C"
 	cY        string = "0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51"
@@ -127,6 +127,21 @@ const (
 	cHusd     string = "0x3eF6A01A0f81D6046290f3e2A8c5b843e738E604"
 	cUsdk     string = "0x3e01dd8a5e1fb3481f0f589056b428fc308af0fb"
 	cUsdn     string = "0x0f9cb53Ebe405d49A0bbdBD291A65Ff571bC83e1"
+
+	// Curve token addresses
+	compCrv      string = "0x845838DF265Dcd2c412A1Dc9e959c7d08537f8a2"
+	usdtCrv      string = "0x9fC689CCaDa600B6DF723D9E47D84d76664a1F23"
+	yCrv         string = "0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8"
+	busdCrv      string = "0x3B3Ac5386837Dc563660FB6a0937DFAa5924333B"
+	susdCrv      string = "0xC25a3A3b969415c80451098fa907EC722572917F"
+	renCrv       string = "0x49849C98ae39Fff122806C06791Fa73784FB3675"
+	sbtcCrv      string = "0x075b1bb99792c9E1041bA13afEf80C91a1e70fB3"
+	hbtcCrv      string = "0xb19059ebb43466C323583928285a49f558E572Fd"
+	threePoolCrv string = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490"
+	gusdCrv      string = "0xD2967f45c4f384DEEa880F807Be904762a3DeA07"
+	husdCrv      string = "0x5B5CFE992AdAC0C9D48E05854B2d91C73a003858"
+	usdkCrv      string = "0x97E2768e8E73511cA874545DC5Ff8067eB19B787"
+	usdnCrv      string = "0x4f3E8F405CF5aFC05D68142F3783bDfE13811522"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -197,9 +212,9 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 		handlers = append(handlers, actions.Actions[i].HandlerAddr)
 		datas = append(datas, actions.Actions[i].Data)
 		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
-		if actions.Actions[i].ApprovalTokenAmount != nil {
-			approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalToken)
-			approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmount)
+		if actions.Actions[i].ApprovalTokenAmounts != nil {
+			approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalTokens...)
+			approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmounts...)
 		}
 	}
 
@@ -277,11 +292,12 @@ func (c *ActualClient) SupplyFundActions(size *big.Int, coin coinType) *Actions 
 
 // Action represents one action, e.g. supply to Compound, swap on Uniswap
 type Action struct {
-	HandlerAddr         common.Address
-	Data                []byte
-	EthersNeeded        *big.Int
-	ApprovalToken       common.Address
-	ApprovalTokenAmount *big.Int
+	HandlerAddr  common.Address
+	Data         []byte
+	EthersNeeded *big.Int
+	// There could be multiple tokens that we need to approve in the case of say Curve add liquidity or Flash loan
+	ApprovalTokens       []common.Address
+	ApprovalTokenAmounts []*big.Int
 }
 
 // Actions represents a list of Action
@@ -682,11 +698,11 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hCTokenAddr),
-				Data:                mintData,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToAddressMap[coin],
-				ApprovalTokenAmount: size,
+				HandlerAddr:          common.HexToAddress(hCTokenAddr),
+				Data:                 mintData,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{CoinToAddressMap[coin]},
+				ApprovalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -733,11 +749,11 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hCTokenAddr),
-				Data:                redeemData,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToCompoundMap[coin],
-				ApprovalTokenAmount: size,
+				HandlerAddr:          common.HexToAddress(hCTokenAddr),
+				Data:                 redeemData,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{CoinToCompoundMap[coin]},
+				ApprovalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -955,11 +971,11 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hYearnAddr),
-				Data:                data,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToAddressMap[coin],
-				ApprovalTokenAmount: size,
+				HandlerAddr:          common.HexToAddress(hYearnAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{CoinToAddressMap[coin]},
+				ApprovalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -987,11 +1003,11 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hYearnAddr),
-				Data:                data,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       common.HexToAddress(yETHVaultAddr),
-				ApprovalTokenAmount: size,
+				HandlerAddr:          common.HexToAddress(hYearnAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{common.HexToAddress(yETHVaultAddr)},
+				ApprovalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -1156,27 +1172,28 @@ func (c *ActualClient) Curve() *CurveClient {
 }
 
 // ExchangeActions creates exchange action
-func (c *CurveClient) ExchangeActions(handler common.Address, token1Addr common.Address, token2Addr common.Address, i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+func (c *CurveClient) ExchangeActions(
+	handler common.Address, token1Addr common.Address, token2Addr common.Address,
+	i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+
 	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
 	if err != nil {
 		return nil
 	}
 
 	data, err := parsed.Pack("exchange", handler, token1Addr, token2Addr, i, j, dx, minDy)
-	log.Printf("error: %v", err)
 
 	if err != nil {
 		return nil
 	}
-	log.Printf("log: %v", hex.EncodeToString(data))
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hCurveAddr),
-				Data:                data,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       token1Addr,
-				ApprovalTokenAmount: dx,
+				HandlerAddr:          common.HexToAddress(hCurveAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{token1Addr},
+				ApprovalTokenAmounts: []*big.Int{dx},
 			},
 		},
 	}
@@ -1193,16 +1210,70 @@ func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Ad
 	if err != nil {
 		return nil
 	}
-	log.Printf("log: %v", hex.EncodeToString(data))
 
 	return &Actions{
 		Actions: []Action{
 			{
-				HandlerAddr:         common.HexToAddress(hCurveAddr),
-				Data:                data,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       token1Addr,
-				ApprovalTokenAmount: dx,
+				HandlerAddr:          common.HexToAddress(hCurveAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{token1Addr},
+				ApprovalTokenAmounts: []*big.Int{dx},
+			},
+		},
+	}
+}
+
+// AddLiquidityAction adds liqudity to the given pool
+func (c *CurveClient) AddLiquidityAction(
+	handler common.Address, pool common.Address, tokens []common.Address,
+	amounts []*big.Int, minAmount *big.Int) *Actions {
+
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("addLiquidity", handler, pool, tokens, amounts, minAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:          common.HexToAddress(hCurveAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       tokens,
+				ApprovalTokenAmounts: amounts,
+			},
+		},
+	}
+}
+
+// RemoveLiquidityAction creates remove liquidity action
+func (c *CurveClient) RemoveLiquidityAction(
+	handler common.Address, pool common.Address, tokenI common.Address, tokenAmount *big.Int, i *big.Int, minAmount *big.Int,
+) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("removeLiquidityOneCoin", handler, pool, tokenI, tokenAmount, i, minAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:          common.HexToAddress(hCurveAddr),
+				Data:                 data,
+				EthersNeeded:         big.NewInt(0),
+				ApprovalTokens:       []common.Address{pool},
+				ApprovalTokenAmounts: []*big.Int{tokenAmount},
 			},
 		},
 	}
