@@ -460,10 +460,10 @@ func TestInteractWithFurucomboCurveAddLiquidity(t *testing.T) {
 
 	actions.Add(
 		defiClient.Curve().AddLiquidityActions(
-			common.HexToAddress(c3Pool), 
-			common.HexToAddress(threePoolCrv), 
-			[]common.Address{CoinToAddressMap[DAI], CoinToAddressMap[USDC], CoinToAddressMap[USDT]}, 
-			[]*big.Int{big.NewInt(1e18), big.NewInt(0), big.NewInt(0)}, 
+			common.HexToAddress(c3Pool),
+			common.HexToAddress(threePoolCrv),
+			[]common.Address{CoinToAddressMap[DAI], CoinToAddressMap[USDC], CoinToAddressMap[USDT]},
+			[]*big.Int{big.NewInt(1e18), big.NewInt(0), big.NewInt(0)},
 			big.NewInt(0)),
 	)
 
