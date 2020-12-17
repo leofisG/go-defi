@@ -8,10 +8,8 @@ module.exports = async function(deployer) {
     registry = await Registry.deployed();
     await deployer.deploy(Proxy, registry.address);
     await deployer.deploy(HCEther);
-    hCEther = HCEther.deployed();
+    hCEther = await HCEther.deployed();
     // TODO: I don't think this is working yet.
-    if (hCEther.address != undefined) {
-        await registry.register(hCEther.address, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    }
+    await registry.register(hCEther.address, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
 };
