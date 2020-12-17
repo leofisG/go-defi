@@ -26,4 +26,8 @@ jobs:
           scripts/startETH.sh
           sleep 5
           go test ./client
+      - name: Run Solidity Linter
+        run: |
+          npm install -g solhint
+          solhint 'contracts/**/*.sol'
 
