@@ -5,10 +5,10 @@ import "./Config.sol";
 import "./lib/libCache.sol";
 import "./Cache.sol";
 import "./interface/IRegistry.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v2.5.0/contracts/utils/Address.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v2.5.0/contracts/math/SafeMath.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v2.5.0/contracts/token/ERC20/IERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v2.5.0/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /**
  * @title The entrance of Furucombo
@@ -22,6 +22,7 @@ contract Proxy is Cache, Config {
     bytes32 private constant HANDLER_REGISTRY = 0x6874162fd62902201ea0f4bf541086067b3b88bd802fac9e150fd2d1db584e19;
 
     constructor(address registry) public {
+        bytes32 dummy_slot = HANDLER_REGISTRY;
         bytes32 slot = HANDLER_REGISTRY;
         assembly {
             sstore(slot, registry)

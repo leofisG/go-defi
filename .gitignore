@@ -1,1 +1,6 @@
 personal_notes.md
+node_modules/
+main.go
+build/
+contracts/artifacts/
+
