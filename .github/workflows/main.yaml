@@ -6,7 +6,7 @@ on: [push, pull_request]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  test:
+  test-go:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -26,4 +26,15 @@ jobs:
           scripts/startETH.sh
           sleep 5
           go test ./client
+  lint-sol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12'
+      - name: Run Solidity Linter
+        run: |
+          npm install -g solhint
+          solhint 'contracts/**/*.sol'
 
