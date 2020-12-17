@@ -447,3 +447,34 @@ func TestInteractWithFurucomboCurve(t *testing.T) {
 		t.Errorf("USDC balance not increasing. %v %v", beforeUSDC, afterUSDC)
 	}
 }
+
+// Supplying DAI to the Curve 3 pool
+func TestInteractWithFurucomboCurveAddLiquidity(t *testing.T) {
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Curve().AddLiquidityActions(
+			common.HexToAddress(c3Pool), 
+			common.HexToAddress(threePoolCrv), 
+			[]common.Address{CoinToAddressMap[DAI], CoinToAddressMap[USDC], CoinToAddressMap[USDT]}, 
+			[]*big.Int{big.NewInt(1e18), big.NewInt(0), big.NewInt(0)}, 
+			big.NewInt(0)),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != 1 {
+		t.Errorf("USDC balance not decreasing. %v %v", beforeDAI, afterDAI)
+	}
+}

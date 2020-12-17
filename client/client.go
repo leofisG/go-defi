@@ -1224,8 +1224,13 @@ func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Ad
 	}
 }
 
-// AddLiquidityAction adds liqudity to the given pool
-func (c *CurveClient) AddLiquidityAction(
+// AddLiquidityActions adds liqudity to the given pool
+// handler: the address of the Curve pool
+// pool: the address of the pool token, e.g. bCRV token or 3CRV token
+// tokens: the addresses of the tokens that is in the pool
+// amounts: how much amount of each tokens you want to deposit
+// minAmount: minimum amount of pool token that you want to get back as a result
+func (c *CurveClient) AddLiquidityActions(
 	handler common.Address, pool common.Address, tokens []common.Address,
 	amounts []*big.Int, minAmount *big.Int) *Actions {
 
@@ -1252,8 +1257,8 @@ func (c *CurveClient) AddLiquidityAction(
 	}
 }
 
-// RemoveLiquidityAction creates remove liquidity action
-func (c *CurveClient) RemoveLiquidityAction(
+// RemoveLiquidityActions creates remove liquidity action
+func (c *CurveClient) RemoveLiquidityActions(
 	handler common.Address, pool common.Address, tokenI common.Address, tokenAmount *big.Int, i *big.Int, minAmount *big.Int,
 ) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
