@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
@@ -100,7 +98,7 @@ const (
 	// Furucombo related addresses
 
 	// FurucomboAddr is the address of the Furucombo proxy
-	FurucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+	FurucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"	
 	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
 	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
 	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
@@ -112,6 +110,8 @@ const (
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+	// TODO: The following is not on mainnet yet
+	hSushiswapAddr string = "0xB6F469a8930dd5111c0EA76571c7E86298A171f7"
 
 	// Curve pool addresses
 	cCompound string = "0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56"
@@ -231,7 +231,6 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 
 		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
 		datas = append([][]byte{injectData}, datas...)
-		log.Printf("print: %v", hex.EncodeToString(datas[0]))
 	}
 
 	proxy, err := furucombo.NewFurucombo(common.HexToAddress(FurucomboAddr), c.conn)
@@ -413,12 +412,12 @@ func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteC
 	var ethersNeeded = big.NewInt(0)
 	if quoteCurrency == ETH {
 		ethersNeeded = size
-		callData = c.swapETHToTokenData(size, baseCurrency)
+		callData = swapETHToTokenData(size, baseCurrency)
 	} else {
 		if baseCurrency == ETH {
-			callData = c.swapTokenToETHData(size, quoteCurrency)
+			callData = swapTokenToETHData(size, quoteCurrency)
 		} else {
-			callData = c.swapTokenToTokenData(size, baseCurrency, quoteCurrency)
+			callData = swapTokenToTokenData(size, baseCurrency, quoteCurrency)
 		}
 	}
 
@@ -433,7 +432,7 @@ func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteC
 	}
 }
 
-func (c *UniswapClient) swapETHToTokenData(size *big.Int, baseCurrency coinType) []byte {
+func swapETHToTokenData(size *big.Int, baseCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -446,7 +445,7 @@ func (c *UniswapClient) swapETHToTokenData(size *big.Int, baseCurrency coinType)
 	return data
 }
 
-func (c *UniswapClient) swapTokenToETHData(size *big.Int, quoteCurrency coinType) []byte {
+func swapTokenToETHData(size *big.Int, quoteCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -459,7 +458,7 @@ func (c *UniswapClient) swapTokenToETHData(size *big.Int, quoteCurrency coinType
 	return data
 }
 
-func (c *UniswapClient) swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency coinType) []byte {
+func swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -784,7 +783,6 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	}
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
-	fmt.Printf("flash loan data: %v", hex.EncodeToString(flashLoanData))
 	return &Actions{
 		Actions: []Action{
 			{
@@ -999,7 +997,6 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 	if err != nil {
 		return nil
 	}
-	log.Printf("remove: %v", hex.EncodeToString(data))
 	return &Actions{
 		Actions: []Action{
 			{
@@ -1157,6 +1154,54 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 
 }
 
+// Sushiswap----------------------------------------------------------------------
+
+// SushiswapClient struct
+type SushiswapClient struct {
+	client *ActualClient
+}
+
+// Sushiswap returns a Sushiswap client
+func (c *ActualClient) Sushiswap() *SushiswapClient {
+	sushiswapClient := new(SushiswapClient)
+	sushiswapClient.client = c
+	return sushiswapClient
+}
+
+// SwapActions create a new swap action
+func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
+	var callData []byte
+	var ethersNeeded = big.NewInt(0)
+	var approvalTokens []common.Address = nil
+	var approvalTokenAmounts []*big.Int = nil
+
+	if quoteCurrency == ETH {
+		ethersNeeded = size
+		callData = swapETHToTokenData(size, baseCurrency)
+	} else {
+		if baseCurrency == ETH {
+			approvalTokens = []common.Address{CoinToAddressMap[quoteCurrency]}
+			approvalTokenAmounts = []*big.Int{size}
+			callData = swapTokenToETHData(size, quoteCurrency)
+		} else {
+			approvalTokens = []common.Address{CoinToAddressMap[quoteCurrency]}
+			approvalTokenAmounts = []*big.Int{size}
+			callData = swapTokenToTokenData(size, baseCurrency, quoteCurrency)
+		}
+	}
+
+	return &Actions{
+		Actions: []Action{
+			{
+				HandlerAddr:  common.HexToAddress(hSushiswapAddr),
+				Data:         callData,
+				EthersNeeded: ethersNeeded,
+				ApprovalTokens: approvalTokens,
+				ApprovalTokenAmounts: approvalTokenAmounts,
+			},
+		},
+	}
+}				
 // Curve-------------------------------------------------------------------------
 
 // CurveClient struct
@@ -1256,6 +1301,7 @@ func (c *CurveClient) AddLiquidityActions(
 		},
 	}
 }
+
 
 // RemoveLiquidityActions creates remove liquidity action
 func (c *CurveClient) RemoveLiquidityActions(
