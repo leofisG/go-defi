@@ -78,8 +78,9 @@ func main() {
 }
 
 ```
+Go Version: 1.13
 
-### APIs
+### Supported Protocols
 - Compound
     - Supply token
     - Redeem token
@@ -97,6 +98,18 @@ func main() {
 	- Exchange underlying token 
 - 1inch (TODO)
 - MakerDao (TODO)
+
+### APIs
+
+The general APIs for this tool is the `ExecuteActions` API.
+
+The tool basically sends the transaction into a proxy contract, and let the proxy
+contract to actually interact with the underlying protocols. 
+
+A graph illustration of the idea is the following:
+![Proxy Contract Interaction](./images/illustration_with_compound.png)
+
+
 
 ## Contact
 - Leonard Ge [Twitter](https://twitter.com/ge_leonard)

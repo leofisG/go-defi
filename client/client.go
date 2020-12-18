@@ -32,15 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type netType int
-
-const (
-	// MainNet the main Ethereum network
-	MainNet netType = iota
-	// TestNet the test net.
-	TestNet netType = iota
-)
-
 type rateModel int64
 
 const (
@@ -172,19 +163,17 @@ type Client interface {
 }
 
 // NewClient Create a new client
-func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client, net netType) (*ActualClient, error) {
+func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client) *ActualClient {
 	c := new(ActualClient)
 	c.conn = ethClient
 	c.opts = opts
-	c.net = net
-	return c, nil
+	return c
 }
 
 // ActualClient is the struct that stores the information.
 type ActualClient struct {
 	opts *bind.TransactOpts
 	conn *ethclient.Client
-	net  netType
 }
 
 // BalanceOf returns the balance of a given coin.
@@ -201,46 +190,26 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
-// ExecuteActions send one transaction for all the Defi interactions
+// ExecuteActions sends one transaction for all the Defi interactions
 func (c *ActualClient) ExecuteActions(actions *Actions) error {
-	handlers := []common.Address{}
-	datas := make([][]byte, 0)
-	totalEthers := big.NewInt(0)
-	approvalTokens := make([]common.Address, 0)
-	approvalAmounts := make([]*big.Int, 0)
-	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
-		if actions.Actions[i].ApprovalTokenAmounts != nil {
-			approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalTokens...)
-			approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmounts...)
-		}
+	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
+	if err != nil {
+		return err
 	}
 
-	if len(approvalTokens) > 0 {
-		parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
-		if err != nil {
-			return err
-		}
-		injectData, err := parsed.Pack("inject", approvalTokens, approvalAmounts)
+	return c.ExecuteActionsWithGasPrice(actions, gasPrice)
+}
 
-		if err != nil {
-			return err
-		}
-
-		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
-		datas = append([][]byte{injectData}, datas...)
+// ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice
+func (c *ActualClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
+	handlers, datas, totalEthers, err := c.CombineActions(actions)
+	if err != nil {
+		return err
 	}
 
 	proxy, err := furucombo.NewFurucombo(common.HexToAddress(FurucomboAddr), c.conn)
 	if err != nil {
 		return nil
-	}
-
-	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
-	if err != nil {
-		return err
 	}
 
 	opts := &bind.TransactOpts{
@@ -262,7 +231,40 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 		return fmt.Errorf("tx receipt status is not 1, indicating a failure occurred")
 	}
 	return nil
+}
 
+// CombineActions takes in an `Actions` and returns a slice of handler address and a slice of call data
+// if the combine is not successful, it will return the error.
+func (c *ActualClient) CombineActions(actions *Actions) ([]common.Address, [][]byte, *big.Int, error) {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	approvalTokens := make([]common.Address, 0)
+	approvalAmounts := make([]*big.Int, 0)
+	
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].HandlerAddr)
+		datas = append(datas, actions.Actions[i].Data)
+		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
+		approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalTokens...)
+		approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmounts...)
+	}
+
+	if len(approvalTokens) > 0 {
+		parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		injectData, err := parsed.Pack("inject", approvalTokens, approvalAmounts)
+
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
+		datas = append([][]byte{injectData}, datas...)
+	}
+	return handlers, datas, totalEthers, nil
 }
 
 // SupplyFundActions transfer a certain amount of fund to the proxy
@@ -305,11 +307,14 @@ type Actions struct {
 }
 
 // Add adds actions together
-func (actions *Actions) Add(newActions *Actions) error {
-	if newActions == nil {
+// This is a variadic function so user can pass in any number of actions.
+func (actions *Actions) Add(newActionss ...*Actions) error {
+	if newActionss == nil {
 		return fmt.Errorf("new action is nil")
 	}
-	actions.Actions = append(actions.Actions, newActions.Actions...)
+	for _, newActions := range newActionss {
+		actions.Actions = append(actions.Actions, newActions.Actions...)
+	}
 	return nil
 }
 
