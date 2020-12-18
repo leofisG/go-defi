@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
