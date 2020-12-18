@@ -92,7 +92,9 @@ func main() {
 - Yearn
 	- Supply to Vault
 	- Withdraw from Vault
-- Curve (TODO)
+- Curve
+	- Exchange token
+	- Exchange underlying token 
 - 1inch (TODO)
 - MakerDao (TODO)
 

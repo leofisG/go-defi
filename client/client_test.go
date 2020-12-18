@@ -196,7 +196,6 @@ func TestInteractWithFurucomboWithYearn(t *testing.T) {
 	}
 }
 
-
 func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 
 	beforeCETH, err := defiClient.Compound().BalanceOf(ETH)
@@ -420,5 +419,62 @@ func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
 	aftercDAI, err := defiClient.BalanceOf(cDAI)
 	if beforecDAI.Cmp(aftercDAI) != -1 {
 		t.Errorf("cdai balance not increasing.")
+	}
+}
+
+func TestInteractWithFurucomboCurve(t *testing.T) {
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	beforeUSDC, err := defiClient.BalanceOf(USDC)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Curve().ExchangeActions(
+			common.HexToAddress(c3Pool), CoinToAddressMap[DAI], CoinToAddressMap[USDC], big.NewInt(0), big.NewInt(1), big.NewInt(1e18), big.NewInt(1e5)),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterUSDC, err := defiClient.BalanceOf(USDC)
+	if beforeUSDC.Cmp(afterUSDC) != -1 {
+		t.Errorf("USDC balance not increasing. %v %v", beforeUSDC, afterUSDC)
+	}
+}
+
+// Supplying DAI to the Curve 3 pool
+func TestInteractWithFurucomboCurveAddLiquidity(t *testing.T) {
+	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Curve().AddLiquidityActions(
+			common.HexToAddress(c3Pool),
+			common.HexToAddress(threePoolCrv),
+			[]common.Address{CoinToAddressMap[DAI], CoinToAddressMap[USDC], CoinToAddressMap[USDT]},
+			[]*big.Int{big.NewInt(1e18), big.NewInt(0), big.NewInt(0)},
+			big.NewInt(0)),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != 1 {
+		t.Errorf("USDC balance not decreasing. %v %v", beforeDAI, afterDAI)
 	}
 }
