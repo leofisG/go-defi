@@ -82,20 +82,22 @@ Go Version: 1.13
 
 ### Supported Protocols
 - Compound
-    - Supply token
-    - Redeem token
+    - Supply token: `client.Compound().SupplyActions()`
+    - Redeem token: `client.Compound().RedeemActions()`
 - Aave (TODO)
-    - Flash loan
+    - Flash loan: `client.Aave().FlashLoanActions()`
 - Uniswap
-    - Swap
+    - Swap: `client.Uniswap().SwapActions()`
 - Kyberswap
-    - Swap
+    - Swap: `client.Kyberswap().SwapActions()`
 - Yearn
-	- Supply to Vault
-	- Withdraw from Vault
+	- Supply to Vault: `client.Yearn().AddLiquidityActions()`
+	- Withdraw from Vault: `client.Yearn().RemoveLiquidityActions()`
 - Curve
-	- Exchange token
-	- Exchange underlying token 
+	- Exchange token: `client.Curve().ExchangeActions()`
+	- Exchange underlying token `client.Curve().ExchangeUnderlyingActions`
+	- Add Liquidity: `client.Curve().AddLiquidityActions()`
+	- Remove Liquidity: `client.Curve().RemoveLiquidityActions()`
 - 1inch (TODO)
 - MakerDao (TODO)
 
@@ -108,7 +110,9 @@ contract to actually interact with the underlying protocols.
 
 A graph illustration of the idea is the following:
 ![Proxy Contract Interaction](./images/illustration_with_compound.png)
-
+The `Client`, i.e. this tool interact with the proxy contract, the proxy contract does the following:
+1. check if the handler is valid through the `isValid` function of the `Registry` contract
+2. If step 1 is successful, delegate call the compound wrapper function to interact with the underlyng compound code.
 
 
 ## Contact
