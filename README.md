@@ -36,6 +36,7 @@ contract to actually interact with the underlying protocols.
 
 A graph illustration of the idea is the following:
 ![Proxy Contract Interaction](./images/illustration_with_compound.png)
+
 The `Client`, i.e. this tool interact with the proxy contract, the proxy contract does the following:
 1. check if the handler is valid through the `isValid` function of the `Registry` contract
 2. If step 1 is successful, delegate call the compound wrapper function to interact with the underlyng compound code.
