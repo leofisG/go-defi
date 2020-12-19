@@ -37,10 +37,7 @@ func init() {
 		log.Fatal("cannot assert type")
 	}
 	fromAddr = crypto.PubkeyToAddress(*publicKeyECDSA)
-	defiClient, err = NewClient(bind.NewKeyedTransactor(key), ethClient, MainNet)
-	if err != nil {
-		log.Fatalf("Error creating client: %v.", err)
-	}
+	defiClient = NewClient(bind.NewKeyedTransactor(key), ethClient)
 	_ = fromAddr
 	_ = ethClient
 	_ = defiClient
@@ -272,9 +269,6 @@ func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 
 	actions.Add(
 		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
-	)
-
-	actions.Add(
 		defiClient.Compound().RedeemActions(big.NewInt(100000), DAI),
 	)
 
@@ -301,11 +295,8 @@ func TestInteractWithFurucomboFlashLoan(t *testing.T) {
 	actions := new(Actions)
 	flashLoanActions := new(Actions)
 
-	flashLoanActions.Add(
-		defiClient.SupplyFundActions(big.NewInt(1e18), DAI),
-	)
-
 	actions.Add(
+		defiClient.SupplyFundActions(big.NewInt(1e18), DAI),
 		defiClient.Aave().FlashLoanActions(
 			big.NewInt(5e18),
 			DAI,
@@ -393,12 +384,7 @@ func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
 
 	flashLoanActions.Add(
 		defiClient.Compound().SupplyActions(big.NewInt(1e18), DAI),
-	)
-	flashLoanActions.Add(
 		defiClient.SupplyFundActions(big.NewInt(2e18), DAI),
-	)
-
-	flashLoanActions.Add(
 		defiClient.Compound().RedeemActions(big.NewInt(1), DAI),
 	)
 
@@ -433,7 +419,13 @@ func TestInteractWithFurucomboCurve(t *testing.T) {
 
 	actions.Add(
 		defiClient.Curve().ExchangeActions(
-			common.HexToAddress(c3Pool), CoinToAddressMap[DAI], CoinToAddressMap[USDC], big.NewInt(0), big.NewInt(1), big.NewInt(1e18), big.NewInt(1e5)),
+			common.HexToAddress(c3Pool), 
+			CoinToAddressMap[DAI], 
+			CoinToAddressMap[USDC], 
+			big.NewInt(0), 
+			big.NewInt(1), 
+			big.NewInt(1e18), 
+			big.NewInt(1e5)),
 	)
 
 	err = defiClient.ExecuteActions(actions)

@@ -2,9 +2,62 @@
 
 This is a framework to combine multiple interactions with Ethereum Defi framework into one atomic transaction.
 
-This library support flash loan, so you can use this library to do things like arbitrage.
+This library support flash loan, so you can use this library to do things like arbitrage. The things that you can do includes:
+- Arbitrage yCRV ([here](https://furucombo.app/explore/combo_curve_00015))
+- Leverage Short DAI ([here](https://furucombo.app/explore/combo_maker_00009))
 
-## Getting Started
+### Supported Protocols
+- Compound
+    - Supply token: `client.Compound().SupplyActions()`
+    - Redeem token: `client.Compound().RedeemActions()`
+- Aave (TODO)
+    - Flash loan: `client.Aave().FlashLoanActions()`
+- Uniswap
+    - Swap: `client.Uniswap().SwapActions()`
+- Kyberswap
+    - Swap: `client.Kyberswap().SwapActions()`
+- Yearn
+	- Supply to Vault: `client.Yearn().AddLiquidityActions()`
+	- Withdraw from Vault: `client.Yearn().RemoveLiquidityActions()`
+- Curve
+	- Exchange token: `client.Curve().ExchangeActions()`
+	- Exchange underlying token `client.Curve().ExchangeUnderlyingActions`
+	- Add Liquidity: `client.Curve().AddLiquidityActions()`
+	- Remove Liquidity: `client.Curve().RemoveLiquidityActions()`
+- 1inch (TODO)
+- MakerDao (TODO)
+
+### APIs
+
+The general APIs for this tool is the `ExecuteActions` API.
+
+The tool basically sends the transaction into a proxy contract, and let the proxy
+contract to actually interact with the underlying protocols. 
+
+A graph illustration of the idea is the following:
+![Proxy Contract Interaction](./images/illustration_with_compound.png)
+The `Client`, i.e. this tool interact with the proxy contract, the proxy contract does the following:
+1. check if the handler is valid through the `isValid` function of the `Registry` contract
+2. If step 1 is successful, delegate call the compound wrapper function to interact with the underlyng compound code.
+
+In the client we create an empty `Actions` by doing:
+```go
+actions := new(client.Actions)
+```
+We then add more `Actions` by calling the `Add` function of the `Actions` struct:
+```go
+actions.Add(
+	defiClient.Compound().SupplyActions(big.NewInt(1e18), client.DAI),
+	defiClient.Uniswap().SwapActions(big.NewInt(1e18), DAI, ETH),
+)
+```
+After that we send the `actions` by calling the `ExecuteActions` function:
+```go
+err = defiClient.ExecuteActions(actions)
+```
+And done we have executed a transaction
+
+## Complete Working Example for flash loan
 Initialize a flash loan
 
 ```go
@@ -78,25 +131,8 @@ func main() {
 }
 
 ```
+Go Version: 1.13
 
-### APIs
-- Compound
-    - Supply token
-    - Redeem token
-- Aave (TODO)
-    - Flash loan
-- Uniswap
-    - Swap
-- Kyberswap
-    - Swap
-- Yearn
-	- Supply to Vault
-	- Withdraw from Vault
-- Curve
-	- Exchange token
-	- Exchange underlying token 
-- 1inch (TODO)
-- MakerDao (TODO)
 
 ## Contact
 - Leonard Ge [Twitter](https://twitter.com/ge_leonard)
@@ -104,3 +140,5 @@ func main() {
 - Liyi Zhou
 - Arthur Gervais
 
+## Acknowledgement
+This is project is inspired by [Furucombo](https://furucombo.app/).
