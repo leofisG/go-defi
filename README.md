@@ -86,7 +86,7 @@ func main() {
 	}
 
 	// Create a New Defi Client
-	defiClient, err := client.NewClient(bind.NewKeyedTransactor(key), ethClient, client.MainNet)
+	defiClient := client.NewClient(bind.NewKeyedTransactor(key), ethClient)
 	if err != nil {
 		log.Fatalf("Error creating client: %v.", err)
 	}

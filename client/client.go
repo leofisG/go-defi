@@ -163,21 +163,23 @@ type Client interface {
 }
 
 // NewClient Create a new client
-func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client) *ActualClient {
-	c := new(ActualClient)
+// opts can be created using your private key
+// ethclient can be created when you dial an ETH end point
+func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client) *DefiClient {
+	c := new(DefiClient)
 	c.conn = ethClient
 	c.opts = opts
 	return c
 }
 
-// ActualClient is the struct that stores the information.
-type ActualClient struct {
+// DefiClient is the struct that stores the information.
+type DefiClient struct {
 	opts *bind.TransactOpts
 	conn *ethclient.Client
 }
 
 // BalanceOf returns the balance of a given coin.
-func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
+func (c *DefiClient) BalanceOf(coin coinType) (*big.Int, error) {
 	erc20, err := erc20.NewErc20(CoinToAddressMap[coin], c.conn)
 	if err != nil {
 		return nil, err
@@ -191,7 +193,7 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 }
 
 // ExecuteActions sends one transaction for all the Defi interactions
-func (c *ActualClient) ExecuteActions(actions *Actions) error {
+func (c *DefiClient) ExecuteActions(actions *Actions) error {
 	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
 	if err != nil {
 		return err
@@ -201,7 +203,7 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 }
 
 // ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice
-func (c *ActualClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
+func (c *DefiClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
 	handlers, datas, totalEthers, err := c.CombineActions(actions)
 	if err != nil {
 		return err
@@ -235,7 +237,7 @@ func (c *ActualClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *bi
 
 // CombineActions takes in an `Actions` and returns a slice of handler address and a slice of call data
 // if the combine is not successful, it will return the error.
-func (c *ActualClient) CombineActions(actions *Actions) ([]common.Address, [][]byte, *big.Int, error) {
+func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byte, *big.Int, error) {
 	handlers := []common.Address{}
 	datas := make([][]byte, 0)
 	totalEthers := big.NewInt(0)
@@ -268,7 +270,7 @@ func (c *ActualClient) CombineActions(actions *Actions) ([]common.Address, [][]b
 }
 
 // SupplyFundActions transfer a certain amount of fund to the proxy
-func (c *ActualClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
+func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
 	if err != nil {
 		return nil
@@ -322,12 +324,12 @@ func (actions *Actions) Add(newActionss ...*Actions) error {
 
 // UniswapClient struct
 type UniswapClient struct {
-	client  *ActualClient
+	client  *DefiClient
 	uniswap *uniswap.Uniswap
 }
 
 // Uniswap returns a uniswap client
-func (c *ActualClient) Uniswap() *UniswapClient {
+func (c *DefiClient) Uniswap() *UniswapClient {
 	uniClient := new(UniswapClient)
 	uniClient.client = c
 	uniswap, err := uniswap.NewUniswap(common.HexToAddress(uniswapAddr), c.conn)
@@ -481,11 +483,11 @@ func swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency co
 
 // CompoundClient is an instance of Compound protocol.
 type CompoundClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
 // Compound returns a compound client
-func (c *ActualClient) Compound() *CompoundClient {
+func (c *DefiClient) Compound() *CompoundClient {
 	compoundClient := new(CompoundClient)
 	compoundClient.client = c
 
@@ -810,12 +812,12 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 
 // YearnClient is an instance of Compound protocol.
 type YearnClient struct {
-	client       *ActualClient
+	client       *DefiClient
 	tokenToVault map[common.Address]common.Address
 }
 
 // Yearn returns a Yearn client
-func (c *ActualClient) Yearn() *YearnClient {
+func (c *DefiClient) Yearn() *YearnClient {
 	yearnClient := new(YearnClient)
 	yearnClient.client = c
 
@@ -1039,12 +1041,12 @@ func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) 
 
 // AaveClient is an instance of Aave protocol.
 type AaveClient struct {
-	client      *ActualClient
+	client      *DefiClient
 	lendingPool *lendingpool.Lendingpool
 }
 
 // Aave returns a Aave client
-func (c *ActualClient) Aave() *AaveClient {
+func (c *DefiClient) Aave() *AaveClient {
 	aaveClient := new(AaveClient)
 	aaveClient.client = c
 
@@ -1109,11 +1111,11 @@ func (c *AaveClient) GetUserReserveData(addr common.Address, user common.Address
 
 // KyberswapClient struct
 type KyberswapClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
 // Kyberswap returns a Kyberswap client
-func (c *ActualClient) Kyberswap() *KyberswapClient {
+func (c *DefiClient) Kyberswap() *KyberswapClient {
 	kyberClient := new(KyberswapClient)
 	kyberClient.client = c
 	return kyberClient
@@ -1163,11 +1165,11 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 
 // SushiswapClient struct
 type SushiswapClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
 // Sushiswap returns a Sushiswap client
-func (c *ActualClient) Sushiswap() *SushiswapClient {
+func (c *DefiClient) Sushiswap() *SushiswapClient {
 	sushiswapClient := new(SushiswapClient)
 	sushiswapClient.client = c
 	return sushiswapClient
@@ -1211,11 +1213,11 @@ func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 
 // CurveClient struct
 type CurveClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
 // Curve returns a Curve client
-func (c *ActualClient) Curve() *CurveClient {
+func (c *DefiClient) Curve() *CurveClient {
 	curveClient := new(CurveClient)
 	curveClient.client = c
 	return curveClient
@@ -1338,7 +1340,7 @@ func (c *CurveClient) RemoveLiquidityActions(
 // utility------------------------------------------------------------------------
 
 // Approve approves ERC-20 token transfer
-func Approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
+func Approve(client *DefiClient, coin coinType, addr common.Address, size *big.Int) error {
 	erc20Contract, err := erc20.NewErc20(CoinToAddressMap[coin], client.conn)
 	if err != nil {
 		return err

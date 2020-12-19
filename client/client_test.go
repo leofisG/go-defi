@@ -19,7 +19,7 @@ var key *ecdsa.PrivateKey
 var ethClient *ethclient.Client
 var publicKey *ecdsa.PublicKey
 var fromAddr common.Address
-var defiClient *ActualClient
+var defiClient *DefiClient
 
 func init() {
 	var err error
