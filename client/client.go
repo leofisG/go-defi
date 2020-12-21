@@ -283,7 +283,7 @@ func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hFunds),
 				Data:         injectData,
@@ -293,8 +293,8 @@ func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 	}
 }
 
-// Action represents one action, e.g. supply to Compound, swap on Uniswap
-type Action struct {
+// action represents one action, e.g. supply to Compound, swap on Uniswap
+type action struct {
 	HandlerAddr  common.Address
 	Data         []byte
 	EthersNeeded *big.Int
@@ -305,7 +305,7 @@ type Action struct {
 
 // Actions represents a list of Action
 type Actions struct {
-	Actions []Action
+	Actions []action
 }
 
 // Add adds actions together
@@ -429,7 +429,7 @@ func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteC
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hUniswapAddr),
 				Data:         callData,
@@ -682,7 +682,7 @@ func (c *CompoundClient) supplyActionsETH(size *big.Int, coin coinType) *Actions
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hCEtherAddr),
 				Data:         data,
@@ -702,7 +702,7 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCTokenAddr),
 				Data:                 mintData,
@@ -733,7 +733,7 @@ func (c *CompoundClient) redeemActionsETH(size *big.Int, coin coinType) *Actions
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hCEtherAddr),
 				Data:         data,
@@ -753,7 +753,7 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCTokenAddr),
 				Data:                 redeemData,
@@ -791,7 +791,7 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hAaveAddr),
 				Data:         flashLoanData,
@@ -949,7 +949,7 @@ func (c *YearnClient) addLiquidityActionsETH(size *big.Int, coin coinType) *Acti
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hYearnAddr),
 				Data:         data,
@@ -974,7 +974,7 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hYearnAddr),
 				Data:                 data,
@@ -1005,7 +1005,7 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hYearnAddr),
 				Data:                 data,
@@ -1027,7 +1027,7 @@ func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) 
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hYearnAddr),
 				Data:         data,
@@ -1150,7 +1150,7 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hKyberAddr),
 				Data:         data,
@@ -1198,7 +1198,7 @@ func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:  common.HexToAddress(hSushiswapAddr),
 				Data:         callData,
@@ -1239,7 +1239,7 @@ func (c *CurveClient) ExchangeActions(
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCurveAddr),
 				Data:                 data,
@@ -1264,7 +1264,7 @@ func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Ad
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCurveAddr),
 				Data:                 data,
@@ -1297,7 +1297,7 @@ func (c *CurveClient) AddLiquidityActions(
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCurveAddr),
 				Data:                 data,
@@ -1325,7 +1325,7 @@ func (c *CurveClient) RemoveLiquidityActions(
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
 				HandlerAddr:          common.HexToAddress(hCurveAddr),
 				Data:                 data,
