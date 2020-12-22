@@ -4,7 +4,7 @@
 # Unlock the account to mint some coins
 npm install -g ganache-cli
 ganache-cli -q \
-  -f http://watson.lowland.fun:19545/ \
+  -f http://watson.lowland.fun:19545@11400000 \
   -m "clutch captain shoe salt awake harvest setup primary inmate ugly among become" \
   -i 1 \
   --unlock 0x39aa39c021dfbae8fac545936693ac917d5e7563 \
