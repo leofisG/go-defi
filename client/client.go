@@ -202,6 +202,42 @@ func (c *DefiClient) ExecuteActions(actions *Actions) error {
 	return c.ExecuteActionsWithGasPrice(actions, gasPrice)
 }
 
+// SuggestGasPrice provides an estimation of the gas price based on the `blockNum`
+// If the blockNum is nil, it will automatically use the latest block data
+// The user can also specify a specific `blockNum` so that block will be used for the prediction.
+func (c *DefiClient) SuggestGasPrice(blockNum *big.Int) (*big.Int, error) {
+	if blockNum == nil {
+		header, err := c.conn.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			return nil, err
+		}
+		blockNum = header.Number
+	}
+
+	block, err := c.conn.BlockByNumber(context.Background(), blockNum)
+    if err != nil {
+        return nil, err
+	}
+	
+	// If there is no transaction in the current block we fail back to the previous block.
+	if (block.Transactions().Len() == 0) {
+		prvBlock := big.NewInt(0)
+		prvBlock.Sub(blockNum, big.NewInt(1))
+		return c.SuggestGasPrice(prvBlock)
+	}
+
+	sum := big.NewInt(0)
+	for _, transaction := range block.Transactions() {
+		sum.Add(sum, transaction.GasPrice())
+	}
+
+	size := big.NewInt(int64(len(block.Transactions())))
+	average := big.NewInt(0)
+
+	average.Div(sum, size)
+	return average, nil
+}
+
 // ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice
 func (c *DefiClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
 	handlers, datas, totalEthers, err := c.CombineActions(actions)
