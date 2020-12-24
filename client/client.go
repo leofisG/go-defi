@@ -299,7 +299,7 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 			return nil, nil, nil, err
 		}
 
-		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
+		handlers = append([]common.Address{common.HexToAddress(hFunds)}, handlers...)
 		datas = append([][]byte{injectData}, datas...)
 	}
 	return handlers, datas, totalEthers, nil
