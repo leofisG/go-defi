@@ -1,11 +1,18 @@
 var Proxy = artifacts.require("./Proxy.sol");
 var Registry = artifacts.require("./Registry.sol");
-var HCEther = artifacts.require("./handlers/compound/HCEther.sol");
 var HSushiswap = artifacts.require("./handlers/sushiswap/HSushiswap.sol");
-var HAave = artifacts.require("./handlers/aave/HAave.sol");
-var HFunds = artifacts.require("./handlers/funds/HFunds.sol");
 const AAVE_LENDING_POOL_ADDR = "0x398ec7346dcd622edc5ae82352f02be94c62d119"
 const DUMMY_ADDR = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+const hCEtherAddr   = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
+const hCTokenAddr   = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
+const hMakerDaoAddr = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
+const hUniswapAddr  = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
+const hCurveAddr    = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
+const hYearnAddr    = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
+const hAaveAddr     = "0xf579b009748a62b1978639d6b54259f8dc915229"
+const hOneInch      = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
+const hFunds        = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
+const hKyberAddr    = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
 
 
 module.exports = async function(deployer) {
@@ -13,24 +20,21 @@ module.exports = async function(deployer) {
     await deployer.deploy(Registry);
     registry = await Registry.deployed();
     await deployer.deploy(Proxy, registry.address);
-    
-    await deployer.deploy(HCEther);
-    hCEther = await HCEther.deployed();
-    await registry.register(hCEther.address, DUMMY_ADDR)
 
     await deployer.deploy(HSushiswap);
     hSushiswap = await HSushiswap.deployed();
     await registry.register(hSushiswap.address, DUMMY_ADDR)
 
-    await deployer.deploy(HAave);
-    hAave = await HAave.deployed();
-    await registry.register(hAave.address, DUMMY_ADDR)
-
-
-    await deployer.deploy(HFunds);
-    hFunds = await HFunds.deployed();
-    await registry.register(hFunds.address, DUMMY_ADDR)
-
     // Aave lending pool
-    await registry.register(AAVE_LENDING_POOL_ADDR, hAave.address)
+    await registry.register(AAVE_LENDING_POOL_ADDR, hAaveAddr)
+    await registry.register(hCEtherAddr, DUMMY_ADDR)
+    await registry.register(hCTokenAddr, DUMMY_ADDR)
+    await registry.register(hMakerDaoAddr, DUMMY_ADDR)
+    await registry.register(hUniswapAddr, DUMMY_ADDR)
+    await registry.register(hCurveAddr, DUMMY_ADDR)
+    await registry.register(hYearnAddr, DUMMY_ADDR)
+    await registry.register(hAaveAddr, DUMMY_ADDR)
+    await registry.register(hOneInch, DUMMY_ADDR)
+    await registry.register(hFunds, DUMMY_ADDR)
+    await registry.register(hKyberAddr, DUMMY_ADDR)
 };
