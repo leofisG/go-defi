@@ -194,7 +194,7 @@ func (c *DefiClient) BalanceOf(coin coinType) (*big.Int, error) {
 
 // ExecuteActions sends one transaction for all the Defi interactions
 func (c *DefiClient) ExecuteActions(actions *Actions) error {
-	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
+	gasPrice, err := c.SuggestGasPrice(nil)
 	if err != nil {
 		return err
 	}
