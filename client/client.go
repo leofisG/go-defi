@@ -281,11 +281,11 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 	approvalAmounts := make([]*big.Int, 0)
 	
 	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
-		approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalTokens...)
-		approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmounts...)
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+		approvalTokens = append(approvalTokens, actions.Actions[i].approvalTokens...)
+		approvalAmounts = append(approvalAmounts, actions.Actions[i].approvalTokenAmounts...)
 	}
 
 	if len(approvalTokens) > 0 {
@@ -302,6 +302,7 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 		handlers = append([]common.Address{common.HexToAddress(hFunds)}, handlers...)
 		datas = append([][]byte{injectData}, datas...)
 	}
+
 	return handlers, datas, totalEthers, nil
 }
 
@@ -321,9 +322,9 @@ func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hFunds),
-				Data:         injectData,
-				EthersNeeded: big.NewInt(0),
+				handlerAddr:  common.HexToAddress(hFunds),
+				data:         injectData,
+				ethersNeeded: big.NewInt(0),
 			},
 		},
 	}
@@ -331,12 +332,12 @@ func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 
 // action represents one action, e.g. supply to Compound, swap on Uniswap
 type action struct {
-	HandlerAddr  common.Address
-	Data         []byte
-	EthersNeeded *big.Int
+	handlerAddr  common.Address
+	data         []byte
+	ethersNeeded *big.Int
 	// There could be multiple tokens that we need to approve in the case of say Curve add liquidity or Flash loan
-	ApprovalTokens       []common.Address
-	ApprovalTokenAmounts []*big.Int
+	approvalTokens       []common.Address
+	approvalTokenAmounts []*big.Int
 }
 
 // Actions represents a list of Action
@@ -467,9 +468,9 @@ func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteC
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hUniswapAddr),
-				Data:         callData,
-				EthersNeeded: ethersNeeded,
+				handlerAddr:  common.HexToAddress(hUniswapAddr),
+				data:         callData,
+				ethersNeeded: ethersNeeded,
 			},
 		},
 	}
@@ -720,9 +721,9 @@ func (c *CompoundClient) supplyActionsETH(size *big.Int, coin coinType) *Actions
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hCEtherAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hCEtherAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -740,11 +741,11 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCTokenAddr),
-				Data:                 mintData,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{CoinToAddressMap[coin]},
-				ApprovalTokenAmounts: []*big.Int{size},
+				handlerAddr:          common.HexToAddress(hCTokenAddr),
+				data:                 mintData,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -771,9 +772,9 @@ func (c *CompoundClient) redeemActionsETH(size *big.Int, coin coinType) *Actions
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hCEtherAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hCEtherAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -791,11 +792,11 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCTokenAddr),
-				Data:                 redeemData,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{CoinToCompoundMap[coin]},
-				ApprovalTokenAmounts: []*big.Int{size},
+				handlerAddr:          common.HexToAddress(hCTokenAddr),
+				data:                 redeemData,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToCompoundMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -807,9 +808,9 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	datas := make([][]byte, 0)
 	totalEthers := big.NewInt(0)
 	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
 	}
 
 	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
@@ -829,9 +830,9 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hAaveAddr),
-				Data:         flashLoanData,
-				EthersNeeded: totalEthers,
+				handlerAddr:  common.HexToAddress(hAaveAddr),
+				data:         flashLoanData,
+				ethersNeeded: totalEthers,
 			},
 		},
 	}
@@ -987,9 +988,9 @@ func (c *YearnClient) addLiquidityActionsETH(size *big.Int, coin coinType) *Acti
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hYearnAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -1012,11 +1013,11 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hYearnAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{CoinToAddressMap[coin]},
-				ApprovalTokenAmounts: []*big.Int{size},
+				handlerAddr:          common.HexToAddress(hYearnAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -1043,11 +1044,11 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hYearnAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{common.HexToAddress(yETHVaultAddr)},
-				ApprovalTokenAmounts: []*big.Int{size},
+				handlerAddr:          common.HexToAddress(hYearnAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{common.HexToAddress(yETHVaultAddr)},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -1065,9 +1066,9 @@ func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) 
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
+				handlerAddr:  common.HexToAddress(hYearnAddr),
+				data:         data,
+				ethersNeeded: big.NewInt(0),
 			},
 		},
 	}
@@ -1081,7 +1082,7 @@ type AaveClient struct {
 	lendingPool *lendingpool.Lendingpool
 }
 
-// Aave returns a Aave client
+// Aave returns an Aave client which contains functions that you can use to interact with Aave.
 func (c *DefiClient) Aave() *AaveClient {
 	aaveClient := new(AaveClient)
 	aaveClient.client = c
@@ -1094,7 +1095,7 @@ func (c *DefiClient) Aave() *AaveClient {
 	return aaveClient
 }
 
-// Lend lend to the lending pool
+// Lend lend to the Aave lending pool
 func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 	opts := &bind.TransactOpts{
 		From:     c.client.opts.From,
@@ -1188,9 +1189,9 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hKyberAddr),
-				Data:         data,
-				EthersNeeded: ethersNeeded,
+				handlerAddr:  common.HexToAddress(hKyberAddr),
+				data:         data,
+				ethersNeeded: ethersNeeded,
 			},
 		},
 	}
@@ -1236,11 +1237,11 @@ func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hSushiswapAddr),
-				Data:         callData,
-				EthersNeeded: ethersNeeded,
-				ApprovalTokens: approvalTokens,
-				ApprovalTokenAmounts: approvalTokenAmounts,
+				handlerAddr:  common.HexToAddress(hSushiswapAddr),
+				data:         callData,
+				ethersNeeded: ethersNeeded,
+				approvalTokens: approvalTokens,
+				approvalTokenAmounts: approvalTokenAmounts,
 			},
 		},
 	}
@@ -1277,11 +1278,11 @@ func (c *CurveClient) ExchangeActions(
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCurveAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{token1Addr},
-				ApprovalTokenAmounts: []*big.Int{dx},
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{token1Addr},
+				approvalTokenAmounts: []*big.Int{dx},
 			},
 		},
 	}
@@ -1302,11 +1303,11 @@ func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Ad
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCurveAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{token1Addr},
-				ApprovalTokenAmounts: []*big.Int{dx},
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{token1Addr},
+				approvalTokenAmounts: []*big.Int{dx},
 			},
 		},
 	}
@@ -1335,11 +1336,11 @@ func (c *CurveClient) AddLiquidityActions(
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCurveAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       tokens,
-				ApprovalTokenAmounts: amounts,
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       tokens,
+				approvalTokenAmounts: amounts,
 			},
 		},
 	}
@@ -1363,11 +1364,11 @@ func (c *CurveClient) RemoveLiquidityActions(
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:          common.HexToAddress(hCurveAddr),
-				Data:                 data,
-				EthersNeeded:         big.NewInt(0),
-				ApprovalTokens:       []common.Address{pool},
-				ApprovalTokenAmounts: []*big.Int{tokenAmount},
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{pool},
+				approvalTokenAmounts: []*big.Int{tokenAmount},
 			},
 		},
 	}
