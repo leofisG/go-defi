@@ -1,0 +1,167 @@
+{
+	"compiler": {
+		"version": "0.5.17+commit.d19bba13"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "fallback"
+			},
+			{
+				"constant": false,
+				"inputs": [],
+				"name": "postProcess",
+				"outputs": [],
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"constant": false,
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_tokenBorrow",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "_tokenPay",
+						"type": "address"
+					},
+					{
+						"internalType": "bytes",
+						"name": "_userData",
+						"type": "bytes"
+					}
+				],
+				"name": "startSwap",
+				"outputs": [],
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"constant": false,
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_sender",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_amount0",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_amount1",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes",
+						"name": "_data",
+						"type": "bytes"
+					}
+				],
+				"name": "uniswapV2Call",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"methods": {}
+		},
+		"userdoc": {
+			"methods": {}
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"localhost/contracts/handlers/uniswap/UniswapSwapper.sol": "UniswapFlashSwapper"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"localhost/contracts/Cache.sol": {
+			"keccak256": "0xab17f849ce3fa755ecff5bbd7ed64d63c57743e60cbd400439138795bee7b544",
+			"urls": [
+				"bzz-raw://8d6631eee1408ae7bb13ab7fab6d2255e463fd4aeefdcde25c0745e7090e6b5f",
+				"dweb:/ipfs/QmXtExPnuaj6CMXLvMqByRojuXY2GVH6QHvY6NbjzSD54w"
+			]
+		},
+		"localhost/contracts/Config.sol": {
+			"keccak256": "0x355290793f09daf2dac43c72517bdb548bc60424d0485c6a2cd354d9378b9c55",
+			"urls": [
+				"bzz-raw://9db349b88e4334219bcc1383bed633885fdcc1a4fc4347334288a09c784a27f8",
+				"dweb:/ipfs/QmU9H94NtDZRDgmtf2oDezfi3EzvhWgb4kVA7K7CZfGmTx"
+			]
+		},
+		"localhost/contracts/IProxy.sol": {
+			"keccak256": "0x495d58eac80e15a42c23d8b3cece3ccd7541f11f95e31e9f17498eb9b3db909f",
+			"urls": [
+				"bzz-raw://655b506f988e738ca6b72de12ce24b3f2b238f15f85f387fcfd9972e22fbe0d8",
+				"dweb:/ipfs/QmUPuMXbcDSTDQqfnsfQMPahEecaSuYpNjFuF5GZnZXyuV"
+			]
+		},
+		"localhost/contracts/handlers/HandlerBase.sol": {
+			"keccak256": "0xf2b89c1ccfc86c0e913ffeb3d874c84458cc5fb4060d945e15fae9f7eaf31e25",
+			"urls": [
+				"bzz-raw://6f711057f3c209b3ed46cf68e04f4a1ac177d121c9f34b713c54625255b3765f",
+				"dweb:/ipfs/QmZPC7cR31oar3CgQGc6DY8t3tPrNhXTRzZKbW1E28fwv3"
+			]
+		},
+		"localhost/contracts/handlers/uniswap/IUniswapV2Callee.sol": {
+			"keccak256": "0x55233f6305d5b4b4cf335f14bf56d6391209cfc341a74a44d74db043a742b066",
+			"urls": [
+				"bzz-raw://970d244eb2f5534fc4f0417d98b37964889316a64209edd705110ed8c5e16c30",
+				"dweb:/ipfs/QmYPMAnoagNSoegAzSs6cSGvhdwF2VYztb8s4rRzJ4UZzX"
+			]
+		},
+		"localhost/contracts/handlers/uniswap/UniswapSwapper.sol": {
+			"keccak256": "0xaa512f03e43d4a4765b14144421cbcb5a550a4131e5a2c463a8537ce1b06d7e5",
+			"urls": [
+				"bzz-raw://5b5e6c65e5386afd9c2cf9964bdc102a2a63a478c291997722c234e6051d4b4f",
+				"dweb:/ipfs/QmZbDYYTT3sJbWDBxSsEy2uvRPn9DKx1JXfcrGKaHG6Wdm"
+			]
+		},
+		"localhost/contracts/handlers/uniswap/UniswapV2Interfaces.sol": {
+			"keccak256": "0xf47a452512f44ffbeae35db6544ecf5ab7aecad6b99e3a01f1c7c58b0dbe9271",
+			"urls": [
+				"bzz-raw://7e521f8330f212b618c781cdcbd854da03eb2295dca389be5d84bcb93b7898f2",
+				"dweb:/ipfs/QmckX6Ty8KrRTfTcK2V1fccn9DxALjurRcBJj2yCtzDCcG"
+			]
+		},
+		"localhost/contracts/lib/libCache.sol": {
+			"keccak256": "0x5d8b5f916b86f27f15ebaf0ec35492766cd0f9e72152533a6184e950043300c8",
+			"urls": [
+				"bzz-raw://a51d59d5e0ca45592431c1a4c522f0d193b346d1168a495b25af1b04f20efc43",
+				"dweb:/ipfs/QmSSmjiUeY59guZDWPskA9RPgJ7UZwtZSSTY76GcfabY53"
+			]
+		}
+	},
+	"version": 1
+}
