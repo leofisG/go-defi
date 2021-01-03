@@ -105,7 +105,7 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
         address _tokenBorrow, uint256 _amount, bool _isBorrowingEth, bool _isPayingEth, bytes memory _userData
     ) private {
         address tokenOther = _tokenBorrow == WETH ? DAI : WETH;
-        permissionedPairAddress = uniswapV2Factory.getPair(_tokenBorrow, tokenOther); // is it cheaper to compute this locally?
+        permissionedPairAddress = uniswapV2Factory.getPair(_tokenBorrow, tokenOther);
         address pairAddress = permissionedPairAddress; // gas efficiency
         require(pairAddress != address(0), "Requested _token is not available.");
         address token0 = IUniswapV2Pair(pairAddress).token0();
