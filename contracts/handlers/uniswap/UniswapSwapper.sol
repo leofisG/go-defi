@@ -11,7 +11,7 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
     enum SwapType {SimpleLoan, SimpleSwap, TriangularSwap}
 
     // CONSTANTS
-    IUniswapV2Factory constant uniswapV2Factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f); // same for all networks
+    IUniswapV2Factory constant uniswapV2Factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     address constant ETH = address(0);
 
     // ACCESS CONTROL
@@ -33,7 +33,9 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
     // @param _tokenPay The address of the token you want to use to payback the flash-borrow, use 0x0 for ETH
     // @param _userData Data that will be passed to the `execute` function for the user
     // @dev Depending on your use case, you may want to add access controls to this function
-    function startSwap(address _tokenBorrow, uint256 _amount, address _tokenPay, bytes calldata _userData) external payable {
+    function startSwap(
+        address _tokenBorrow, uint256 _amount, address _tokenPay, bytes calldata _userData
+    ) external payable {
         bool isBorrowingEth;
         bool isPayingEth;
         address tokenBorrow = _tokenBorrow;
@@ -83,7 +85,8 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
             simpleFlashLoanExecute(_tokenBorrow, _amount, msg.sender, _isBorrowingEth, _isPayingEth, _userData);
             return;
         } else if (_swapType == SwapType.SimpleSwap) {
-            simpleFlashSwapExecute(_tokenBorrow, _amount, _tokenPay, msg.sender, _isBorrowingEth, _isPayingEth, _userData);
+            simpleFlashSwapExecute(
+                _tokenBorrow, _amount, _tokenPay, msg.sender, _isBorrowingEth, _isPayingEth, _userData);
             return;
         } else {
             traingularFlashSwapExecute(_tokenBorrow, _amount, _tokenPay, _triangleData, _userData);
@@ -98,7 +101,9 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
 
     // @notice This function is used when the user repays with the same token they borrowed
     // @dev This initiates the flash borrow. See `simpleFlashLoanExecute` for the code that executes after the borrow.
-    function simpleFlashLoan(address _tokenBorrow, uint256 _amount, bool _isBorrowingEth, bool _isPayingEth, bytes memory _userData) private {
+    function simpleFlashLoan(
+        address _tokenBorrow, uint256 _amount, bool _isBorrowingEth, bool _isPayingEth, bytes memory _userData
+    ) private {
         address tokenOther = _tokenBorrow == WETH ? DAI : WETH;
         permissionedPairAddress = uniswapV2Factory.getPair(_tokenBorrow, tokenOther); // is it cheaper to compute this locally?
         address pairAddress = permissionedPairAddress; // gas efficiency
@@ -162,7 +167,7 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
         bool _isPayingEth,
         bytes memory _userData
     ) private {
-        permissionedPairAddress = uniswapV2Factory.getPair(_tokenBorrow, _tokenPay); // is it cheaper to compute this locally?
+        permissionedPairAddress = uniswapV2Factory.getPair(_tokenBorrow, _tokenPay);
         address pairAddress = permissionedPairAddress; // gas efficiency
         require(pairAddress != address(0), "Requested pair is not available.");
         address token0 = IUniswapV2Pair(pairAddress).token0();
@@ -217,15 +222,18 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
 
     // @notice This function is used when neither the _tokenBorrow nor the _tokenPay is WETH
     // @dev Since it is unlikely that the _tokenBorrow/_tokenPay pair has more liquidaity than the _tokenBorrow/WETH and
-    //     _tokenPay/WETH pairs, we do a triangular swap here. That is, we flash borrow WETH from the _tokenPay/WETH pair,
-    //     Then we swap that borrowed WETH for the desired _tokenBorrow via the _tokenBorrow/WETH pair. And finally,
-    //     we pay back the original flash-borrow using _tokenPay.
-    // @dev This initiates the flash borrow. See `traingularFlashSwapExecute` for the code that executes after the borrow.
-    function traingularFlashSwap(address _tokenBorrow, uint _amount, address _tokenPay, bytes memory _userData) private {
-        address borrowPairAddress = uniswapV2Factory.getPair(_tokenBorrow, WETH); // is it cheaper to compute this locally?
+    //      _tokenPay/WETH pairs, we do a triangular swap here. That is, we flash borrow WETH from the _tokenPay/WETH 
+    //      pair, Then we swap that borrowed WETH for the desired _tokenBorrow via the _tokenBorrow/WETH pair. And 
+    //      finally, we pay back the original flash-borrow using _tokenPay.
+    // @dev This initiates the flash borrow. See `traingularFlashSwapExecute` for the code that executes after 
+    //      the borrow.
+    function traingularFlashSwap(
+        address _tokenBorrow, uint _amount, address _tokenPay, bytes memory _userData
+    ) private {
+        address borrowPairAddress = uniswapV2Factory.getPair(_tokenBorrow, WETH);
         require(borrowPairAddress != address(0), "Requested borrow token is not available.");
 
-        permissionedPairAddress = uniswapV2Factory.getPair(_tokenPay, WETH); // is it cheaper to compute this locally?
+        permissionedPairAddress = uniswapV2Factory.getPair(_tokenPay, WETH);
         address payPairAddress = permissionedPairAddress; // gas efficiency
         require(payPairAddress != address(0), "Requested pay token is not available.");
 
@@ -237,7 +245,8 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
         uint amountOfWeth = ((1000 * pairBalanceWeth * _amount) / (997 * pairBalanceTokenBorrowAfter)) + 1;
 
         // using a helper function here to avoid "stack too deep" :(
-        traingularFlashSwapHelper(_tokenBorrow, _amount, _tokenPay, borrowPairAddress, payPairAddress, amountOfWeth, _userData);
+        traingularFlashSwapHelper(
+            _tokenBorrow, _amount, _tokenPay, borrowPairAddress, payPairAddress, amountOfWeth, _userData);
     }
 
     // @notice Helper function for `traingularFlashSwap` to avoid `stack too deep` errors
@@ -256,7 +265,8 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
         uint amount0Out = WETH == token0 ? _amountOfWeth : 0;
         uint amount1Out = WETH == token1 ? _amountOfWeth : 0;
         bytes memory triangleData = abi.encode(_borrowPairAddress, _amountOfWeth);
-        bytes memory data = abi.encode(SwapType.TriangularSwap, _tokenBorrow, _amount, _tokenPay, false, false, triangleData, _userData);
+        bytes memory data = abi.encode(
+            SwapType.TriangularSwap, _tokenBorrow, _amount, _tokenPay, false, false, triangleData, _userData);
         // initiate the flash swap from UniswapV2
         IUniswapV2Pair(_payPairAddress).swap(amount0Out, amount1Out, address(this), data);
     }
@@ -299,9 +309,10 @@ contract UniswapFlashSwapper is HandlerBase, IUniswapV2Callee {
     // @dev When this function executes, this contract will hold _amount of _tokenBorrow
     // @dev It is important that, by the end of the execution of this function, this contract holds the necessary
     //     amount of the original _tokenPay needed to pay back the flash-loan.
-    // @dev Paying back the flash-loan happens automatically by the calling function -- do not pay back the loan in this function
-    // @dev If you entered `0x0` for _tokenPay when you called `flashSwap`, then make sure this contract hols _amount ETH before this
-    //     finishes executing
+    // @dev Paying back the flash-loan happens automatically by the calling function 
+    //      -- do not pay back the loan in this function
+    // @dev If you entered `0x0` for _tokenPay when you called `flashSwap`, then make sure this contract hols 
+    // _amount ETH before this finishes executing
     // @dev User will override this function on the inheriting contract
     function execute(bytes memory _userData) internal {
         (address[] memory tos, bytes[] memory datas) = abi.decode(
