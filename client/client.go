@@ -524,9 +524,9 @@ func (c *UniswapClient) FlashSwapActions(size *big.Int, coinBorrow coinType, coi
 	datas := make([][]byte, 0)
 	totalEthers := big.NewInt(0)
 	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
 	}
 
 	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
@@ -550,9 +550,9 @@ func (c *UniswapClient) FlashSwapActions(size *big.Int, coinBorrow coinType, coi
 	return &Actions{
 		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hSwapper),
-				Data:         flashSwapData,
-				EthersNeeded: totalEthers,
+				handlerAddr:  common.HexToAddress(hSwapper),
+				data:         flashSwapData,
+				ethersNeeded: totalEthers,
 			},
 		},
 	}
