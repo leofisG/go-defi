@@ -22,6 +22,7 @@ import (
 	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/furucombo"
+	"github.com/524119574/go-defi/binding/swapper"
 	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/524119574/go-defi/binding/yearn/yregistry"
 	"github.com/524119574/go-defi/binding/yearn/yvault"
@@ -103,6 +104,7 @@ const (
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
 	// TODO: The following is not on mainnet yet
 	hSushiswapAddr string = "0xB6F469a8930dd5111c0EA76571c7E86298A171f7"
+	hSwapper       string = "0x017F3f2EB0c55DDF49B95ad38Cd2737ACf64AB4d"
 
 	// Curve pool addresses
 	cCompound string = "0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56"
@@ -215,12 +217,12 @@ func (c *DefiClient) SuggestGasPrice(blockNum *big.Int) (*big.Int, error) {
 	}
 
 	block, err := c.conn.BlockByNumber(context.Background(), blockNum)
-    if err != nil {
-        return nil, err
+	if err != nil {
+		return nil, err
 	}
-	
+
 	// If there is no transaction in the current block we fail back to the previous block.
-	if (block.Transactions().Len() == 0) {
+	if block.Transactions().Len() == 0 {
 		prvBlock := big.NewInt(0)
 		prvBlock.Sub(blockNum, big.NewInt(1))
 		return c.SuggestGasPrice(prvBlock)
@@ -279,7 +281,7 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 	totalEthers := big.NewInt(0)
 	approvalTokens := make([]common.Address, 0)
 	approvalAmounts := make([]*big.Int, 0)
-	
+
 	for i := 0; i < len(actions.Actions); i++ {
 		handlers = append(handlers, actions.Actions[i].handlerAddr)
 		datas = append(datas, actions.Actions[i].data)
@@ -514,6 +516,46 @@ func swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency co
 		return nil
 	}
 	return data
+}
+
+// FlashSwapActions create an action to get flash swap
+func (c *UniswapClient) FlashSwapActions(size *big.Int, coinBorrow coinType, coinRepay coinType, actions *Actions) *Actions {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+	}
+
+	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
+	if err != nil {
+		return nil
+	}
+	payloadData, err := proxy.Pack("execs", handlers, datas)
+	if err != nil {
+		return nil
+	}
+	swapperAbi, err := abi.JSON(strings.NewReader(swapper.SwapperABI))
+	if err != nil {
+		return nil
+	}
+	// skip the first 4 bytes to omit the function selector
+	flashSwapData, err := swapperAbi.Pack("startSwap", CoinToAddressMap[coinBorrow], size, CoinToAddressMap[coinRepay], payloadData[4:])
+	if err != nil {
+		return nil
+	}
+
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:  common.HexToAddress(hSwapper),
+				data:         flashSwapData,
+				ethersNeeded: totalEthers,
+			},
+		},
+	}
 }
 
 // Compound---------------------------------------------------------------------
@@ -1245,7 +1287,8 @@ func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 			},
 		},
 	}
-}				
+}
+
 // Curve-------------------------------------------------------------------------
 
 // CurveClient struct
@@ -1345,7 +1388,6 @@ func (c *CurveClient) AddLiquidityActions(
 		},
 	}
 }
-
 
 // RemoveLiquidityActions creates remove liquidity action
 func (c *CurveClient) RemoveLiquidityActions(
