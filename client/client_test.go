@@ -189,7 +189,7 @@ func TestInteractWithFurucomboWithYearn(t *testing.T) {
 	afterafterETH, err := ethClient.BalanceAt(context.Background(), fromAddr, nil)
 
 	if afterETH.Cmp(afterafterETH) != -1 {
-		t.Errorf("ETH balance not increasing. %v %v, %v", afterETH, afterafterETH, actions.Actions[0].Data)
+		t.Errorf("ETH balance not increasing. %v %v, %v", afterETH, afterafterETH, actions.Actions[0].data)
 	}
 }
 
@@ -396,7 +396,7 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 
 }
 
-func TestInteractWithFurucomboFlashLoanUniswapKyber(t *testing.T) {
+func TestInteractWithFurucomboFlashLoanCompound(t *testing.T) {
 	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
 	beforecDAI, err := defiClient.BalanceOf(cDAI)
 	if err != nil {
