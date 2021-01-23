@@ -1330,6 +1330,13 @@ func (c *CurveClient) ExchangeActions(
 }
 
 // ExchangeUnderlyingActions creates a Curve exchangeUnderlying action.
+// `handler` is the address of the Curve pool.
+// `token1Addr` is the address of the input token.
+// `token2Addr` is the address of the output token.
+// `i` is the index of the input token in the pool.
+// `j` is the index of the output token in the pool.
+// `dx` is the amount of the input token that you want to swap
+// `minDy` is the minimum amount of the output token that you want to receive.
 func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Addr common.Address, token2Addr common.Address, i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
 	if err != nil {
@@ -1354,12 +1361,12 @@ func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Ad
 	}
 }
 
-// AddLiquidityActions adds liqudity to the given pool
-// handler: the address of the Curve pool
-// pool: the address of the pool token, e.g. bCRV token or 3CRV token
-// tokens: the addresses of the tokens that is in the pool
-// amounts: how much amount of each tokens you want to deposit
-// minAmount: minimum amount of pool token that you want to get back as a result
+// AddLiquidityActions adds liqudity to the given pool.
+// `handler` is the address of the Curve pool.
+// `pool` is the address of the pool token, e.g. bCRV token or 3CRV token.
+// `tokens` is the addresses of the tokens that is in the pool.
+// `amounts` is how much amount of each tokens you want to deposit.
+// `minAmount` is the minimum amount of pool token that you want to get back as a result.
 func (c *CurveClient) AddLiquidityActions(
 	handler common.Address, pool common.Address, tokens []common.Address,
 	amounts []*big.Int, minAmount *big.Int) *Actions {
@@ -1388,6 +1395,12 @@ func (c *CurveClient) AddLiquidityActions(
 }
 
 // RemoveLiquidityActions creates remove liquidity action on Curve.
+// `handler` is the address of the Curve pool.
+// `pool` is the address of the pool token, e.g. bCRV token or 3CRV token.
+// `tokenI` is the addresse of the tokens that you want to remove.
+// `tokenAmount` is how much amount of token you want to deposit.
+// `i` is the index of the token in the given pool.
+// `minAmount` is the minimum amount of the underlying token that you want to get back as a result.
 func (c *CurveClient) RemoveLiquidityActions(
 	handler common.Address, pool common.Address, tokenI common.Address, tokenAmount *big.Int, i *big.Int, minAmount *big.Int,
 ) *Actions {
