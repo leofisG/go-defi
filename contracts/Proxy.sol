@@ -29,6 +29,16 @@ contract Proxy is Cache, Config {
         }
     }
 
+    function getSig(bytes memory data) private pure returns (bytes4) {
+        bytes4 sig = 0x0;
+        for (uint i = 0; i < 4; i++) {
+            sig |= (bytes4(data[i]) >> (8 * i));
+        }
+        return (sig);
+    }
+
+
+
     /**
      * @notice Direct transfer from EOA should be reverted.
      * @dev Callback function will be handled here.
@@ -40,12 +50,22 @@ contract Proxy is Cache, Config {
         // The function call will then be forwarded to the location registered in
         // registry.
         if (msg.data.length != 0) {
-            require(_isValid(msg.sender), "Invalid caller");
-
-            address target = address(
-                bytes20(IRegistry(_getRegistry()).getInfo(msg.sender))
-            );
-            _exec(target, msg.data);
+            // bytes4 sig = abi.decode(getSlice(0, 4, msg.data), (bytes4));
+            bytes4 sig = getSig(msg.data);
+            if (_isValid(msg.sender)) {
+                address target = address(
+                    bytes20(IRegistry(_getRegistry()).getInfo(msg.sender))
+                );
+                _exec(target, msg.data);
+            } else if (sig == bytes4(keccak256("uniswapV2Call(address,uint256,uint256,bytes)"))) {
+                // require(false, "executed!!!!");
+                address target = address(
+                    bytes20(IRegistry(_getRegistry()).getInfo(address(0x1111111111111111111111111111111111111111)))
+                );
+                _exec(target, msg.data);
+            } else {
+                require(false, "Invalid caller");
+            }
         }
     }
 

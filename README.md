@@ -10,7 +10,7 @@ This library support flash loan, so you can use this library to do things like a
 - Compound
     - Supply token: `client.Compound().SupplyActions()`
     - Redeem token: `client.Compound().RedeemActions()`
-- Aave (TODO)
+- Aave
     - Flash loan: `client.Aave().FlashLoanActions()`
 - Uniswap
     - Swap: `client.Uniswap().SwapActions()`
@@ -24,14 +24,15 @@ This library support flash loan, so you can use this library to do things like a
 	- Exchange underlying token `client.Curve().ExchangeUnderlyingActions`
 	- Add Liquidity: `client.Curve().AddLiquidityActions()`
 	- Remove Liquidity: `client.Curve().RemoveLiquidityActions()`
-- 1inch (TODO)
-- MakerDao (TODO)
+- Sushiswap
+    - Swap: `client.Sushiswap().SwapActions()`
+- MakerDao
 
 ### APIs
 
-The general APIs for this tool is the `ExecuteActions` API.
+The main API for this tool is the `ExecuteActions` API.
 
-The tool basically sends the transaction into a proxy contract, and let the proxy
+The tool sends the transaction into a proxy contract, and let the proxy
 contract to actually interact with the underlying protocols. 
 
 A graph illustration of the idea is the following:
@@ -39,7 +40,7 @@ A graph illustration of the idea is the following:
 
 The `Client`, i.e. this tool interact with the proxy contract, the proxy contract does the following:
 1. check if the handler is valid through the `isValid` function of the `Registry` contract
-2. If step 1 is successful, delegate call the compound wrapper function to interact with the underlyng compound code.
+2. If step 1 is successful, delegate call the compound handler contract to interact with the underlyng compound code.
 
 In the client we create an empty `Actions` by doing:
 ```go
@@ -134,6 +135,8 @@ func main() {
 ```
 Go Version: 1.13
 
+## Documentation
+A more thorough documentation can be found [here](https://godoc.org/github.com/524119574/go-defi/client).
 
 ## Contact
 - Leonard Ge [Twitter](https://twitter.com/ge_leonard)

@@ -1,6 +1,7 @@
 var Proxy = artifacts.require("./Proxy.sol");
 var Registry = artifacts.require("./Registry.sol");
 var HSushiswap = artifacts.require("./handlers/sushiswap/HSushiswap.sol");
+var UniswapFlashSwapper = artifacts.require("./handlers/uniswap/UniswapFlashSwapper.sol");
 const AAVE_LENDING_POOL_ADDR = "0x398ec7346dcd622edc5ae82352f02be94c62d119"
 const DUMMY_ADDR = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const hCEtherAddr   = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
@@ -25,8 +26,14 @@ module.exports = async function(deployer) {
     hSushiswap = await HSushiswap.deployed();
     await registry.register(hSushiswap.address, DUMMY_ADDR)
 
+    await deployer.deploy(UniswapFlashSwapper);
+    uniswapFlashSwapper = await UniswapFlashSwapper.deployed();
+    await registry.register(uniswapFlashSwapper.address, DUMMY_ADDR)
+
     // Aave lending pool
     await registry.register(AAVE_LENDING_POOL_ADDR, hAaveAddr)
+    // register a dummy address for uniswap flash swapper.
+    await registry.register("0x1111111111111111111111111111111111111111", uniswapFlashSwapper.address)
     await registry.register(hCEtherAddr, DUMMY_ADDR)
     await registry.register(hCTokenAddr, DUMMY_ADDR)
     await registry.register(hMakerDaoAddr, DUMMY_ADDR)
