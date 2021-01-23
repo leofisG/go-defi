@@ -13,6 +13,8 @@ import (
 	"github.com/524119574/go-defi/binding/hkyber"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
+	"github.com/524119574/go-defi/binding/hmaker"
+
 
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -69,6 +71,8 @@ const (
 	ZRX coinType = iota
 	// BUSD is the Binance USD token.
 	BUSD coinType = iota
+	// YFI is the yearn governance token.
+	YFI coinType = iota
 
 	// cToken is the token that user receive after deposit into Yearn
 	cETH = iota
@@ -157,6 +161,18 @@ var CoinToCompoundMap = map[coinType]common.Address{
 	ETH:  common.HexToAddress("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5"),
 	DAI:  common.HexToAddress("0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"),
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
+}
+
+var CoinToJoinMap = map[coinType]common.Address{
+	DAI: common.HexToAddress("0x9759A6Ac90977b93B58547b4A71c78317f391A28"),
+	ETH: common.HexToAddress("0x2F0b23f53734252Bda2277357e97e1517d6B042A"),
+	USDC: common.HexToAddress("0xA191e578a6736167326d05c119CE0c90849E84B7"),
+	YFI: common.HexToAddress("0x3ff33d9162aD47660083D7DC4bC02Fb231c81677"),
+}
+
+var CoinToIlkMap = map[coinType][32]byte {
+	ETH: byte32PutString("4554482d41000000000000000000000000000000000000000000000000000000"),
+	YFI: byte32PutString("5946492d41000000000000000000000000000000000000000000000000000000"),
 }
 
 // Client is the new interface
@@ -1431,11 +1447,11 @@ func (c *CurveClient) RemoveLiquidityActions(
 
 // MakerClient is an instance of Maker protocol.
 type MakerClient struct {
-	client       *ActualClient
+	client       *DefiClient
 }
 
 // Maker creates a new instance of MakerClient
-func (c *ActualClient) Maker() *MakerClient {
+func (c *DefiClient) Maker() *MakerClient {
 	makerClient := new(MakerClient)
 	makerClient.client = c
 	return makerClient
@@ -1458,17 +1474,16 @@ func (c *MakerClient) generateDaiActionETH(collateralAmount *big.Int, daiAmount 
 	}
 
 	data, err := parsed.Pack("openLockETHAndDraw", collateralAmount, CoinToJoinMap[ETH], CoinToJoinMap[DAI], CoinToIlkMap[ETH], daiAmount)
-	log.Printf("hello hello~ %v %v", hex.EncodeToString(data), daiAmount)
 
 	if err != nil {
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hMakerDaoAddr),
-				Data:         data,
-				EthersNeeded: collateralAmount,
+				handlerAddr:  common.HexToAddress(hMakerDaoAddr),
+				data:         data,
+				ethersNeeded: collateralAmount,
 			},
 		},
 	}
@@ -1509,6 +1524,5 @@ func byte32PutString(s string) [32]byte {
     } else {
         copy(res[32-len(s):], decoded)
 	}
-	log.Printf("byte: %v", hex.EncodeToString(res[:]))
     return res
 }
