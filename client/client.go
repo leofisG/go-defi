@@ -2,17 +2,15 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
 	"github.com/524119574/go-defi/binding/haave"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
+	"github.com/524119574/go-defi/binding/hcurve"
 	"github.com/524119574/go-defi/binding/hkyber"
-	"github.com/524119574/go-defi/binding/hmaker"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
 
@@ -24,6 +22,7 @@ import (
 	"github.com/524119574/go-defi/binding/compound/cToken"
 	"github.com/524119574/go-defi/binding/erc20"
 	"github.com/524119574/go-defi/binding/furucombo"
+	"github.com/524119574/go-defi/binding/swapper"
 	"github.com/524119574/go-defi/binding/uniswap"
 	"github.com/524119574/go-defi/binding/yearn/yregistry"
 	"github.com/524119574/go-defi/binding/yearn/yvault"
@@ -32,15 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-)
-
-type netType int
-
-const (
-	// MainNet the main Ethereum network
-	MainNet netType = iota
-	// TestNet the test net.
-	TestNet netType = iota
 )
 
 type rateModel int64
@@ -55,35 +45,32 @@ const (
 type coinType int
 
 const (
-	// ETH weiwu
+	// ETH is ether.
 	ETH coinType = iota
-	// BAT weiwu
+	// BAT is basic attention token.
 	BAT coinType = iota
-	// COMP weiwu
+	// COMP is the governance token for Compound.
 	COMP coinType = iota
-	// DAI weiwu
+	// DAI is the stable coin.
 	DAI coinType = iota
-	// REP weiwu
+	// REP is Augur reputation token.
 	REP coinType = iota
-	// SAI weiwu
+	// SAI is Single Collateral DAI.
 	SAI coinType = iota
-	// UNI weiwu
+	// UNI is the governance token for Uniswap.
 	UNI coinType = iota
-	// USDC weiwu
+	// USDC is the stable coin by Circle.
 	USDC coinType = iota
-	// USDT weiwu
+	// USDT is the stable coin.
 	USDT coinType = iota
-	// WBTC weiwu
+	// WBTC is wrapped BTC.
 	WBTC coinType = iota
-	// ZRX weiwu
+	// ZRX is the utility token for 0x.
 	ZRX coinType = iota
-	// BUSD weiwu
+	// BUSD is the Binance USD token.
 	BUSD coinType = iota
 
-	// YFI
-	YFI coinType = iota
-
-	// cToken
+	// cToken is the token that user receive after deposit into Yearn
 	cETH = iota
 
 	cDAI = iota
@@ -100,10 +87,10 @@ const (
 	yETHVaultAddr           string = "0xe1237aA7f535b0CC33Fd973D66cBf830354D16c7"
 	aaveLendingPoolAddr     string = "0x398eC7346DcD622eDc5ae82352F02bE94C62d119"
 	aaveLendingPoolCoreAddr string = "0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3"
-	// Furucombo related addresses
+	// Proxy and Handler related addresses
 
-	// FurucomboAddr is the address of the Furucombo proxy
-	FurucomboAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+	// ProxyAddr is the address of the proxy contract.
+	ProxyAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"	
 	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
 	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
 	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
@@ -115,11 +102,39 @@ const (
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+	// TODO: The following is not on mainnet yet
+	hSushiswapAddr string = "0xB6F469a8930dd5111c0EA76571c7E86298A171f7"
+	hSwapper       string = "0x017F3f2EB0c55DDF49B95ad38Cd2737ACf64AB4d"
 
-	// MakerDao related constants
-	// You can find the most up-to-date addresses here: https://changelog.makerdao.com/releases/mainnet/active/contracts.json
-	ethMakerDao string = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-	yfiMakerDao string = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e"
+	// Curve pool addresses
+	cCompound string = "0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56"
+	cUsdt     string = "0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C"
+	cY        string = "0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51"
+	cBusd     string = "0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27"
+	cSusd     string = "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD"
+	cRen      string = "0x93054188d876f558f4a66B2EF1d97d16eDf0895B"
+	cSbtc     string = "0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714"
+	cHbtc     string = "0x4ca9b3063ec5866a4b82e437059d2c43d1be596f"
+	c3Pool    string = "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7"
+	cGusd     string = "0x4f062658eaaf2c1ccf8c8e36d6824cdf41167956"
+	cHusd     string = "0x3eF6A01A0f81D6046290f3e2A8c5b843e738E604"
+	cUsdk     string = "0x3e01dd8a5e1fb3481f0f589056b428fc308af0fb"
+	cUsdn     string = "0x0f9cb53Ebe405d49A0bbdBD291A65Ff571bC83e1"
+
+	// Curve token addresses
+	compCrv      string = "0x845838DF265Dcd2c412A1Dc9e959c7d08537f8a2"
+	usdtCrv      string = "0x9fC689CCaDa600B6DF723D9E47D84d76664a1F23"
+	yCrv         string = "0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8"
+	busdCrv      string = "0x3B3Ac5386837Dc563660FB6a0937DFAa5924333B"
+	susdCrv      string = "0xC25a3A3b969415c80451098fa907EC722572917F"
+	renCrv       string = "0x49849C98ae39Fff122806C06791Fa73784FB3675"
+	sbtcCrv      string = "0x075b1bb99792c9E1041bA13afEf80C91a1e70fB3"
+	hbtcCrv      string = "0xb19059ebb43466C323583928285a49f558E572Fd"
+	threePoolCrv string = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490"
+	gusdCrv      string = "0xD2967f45c4f384DEEa880F807Be904762a3DeA07"
+	husdCrv      string = "0x5B5CFE992AdAC0C9D48E05854B2d91C73a003858"
+	usdkCrv      string = "0x97E2768e8E73511cA874545DC5Ff8067eB19B787"
+	usdnCrv      string = "0x4f3E8F405CF5aFC05D68142F3783bDfE13811522"
 )
 
 // CoinToAddressMap returns a mapping from coin to address
@@ -144,41 +159,29 @@ var CoinToCompoundMap = map[coinType]common.Address{
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
 }
 
-var CoinToJoinMap = map[coinType]common.Address{
-	DAI: common.HexToAddress("0x9759A6Ac90977b93B58547b4A71c78317f391A28"),
-	ETH: common.HexToAddress("0x2F0b23f53734252Bda2277357e97e1517d6B042A"),
-	USDC: common.HexToAddress("0xA191e578a6736167326d05c119CE0c90849E84B7"),
-	YFI: common.HexToAddress("0x3ff33d9162aD47660083D7DC4bC02Fb231c81677"),
-}
-
-var CoinToIlkMap = map[coinType][32]byte {
-	ETH: byte32PutString("4554482d41000000000000000000000000000000000000000000000000000000"),
-	YFI: byte32PutString("5946492d41000000000000000000000000000000000000000000000000000000"),
-}
-
 // Client is the new interface
 type Client interface {
 	Uniswap() UniswapClient
 }
 
 // NewClient Create a new client
-func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client, net netType) (*ActualClient, error) {
-	c := new(ActualClient)
+// opts can be created using your private key
+// ethclient can be created when you dial an ETH end point
+func NewClient(opts *bind.TransactOpts, ethClient *ethclient.Client) *DefiClient {
+	c := new(DefiClient)
 	c.conn = ethClient
 	c.opts = opts
-	c.net = net
-	return c, nil
+	return c
 }
 
-// ActualClient is the struct that stores the information.
-type ActualClient struct {
+// DefiClient is the struct that stores the information.
+type DefiClient struct {
 	opts *bind.TransactOpts
 	conn *ethclient.Client
-	net  netType
 }
 
 // BalanceOf returns the balance of a given coin.
-func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
+func (c *DefiClient) BalanceOf(coin coinType) (*big.Int, error) {
 	erc20, err := erc20.NewErc20(CoinToAddressMap[coin], c.conn)
 	if err != nil {
 		return nil, err
@@ -191,46 +194,62 @@ func (c *ActualClient) BalanceOf(coin coinType) (*big.Int, error) {
 	return balance, nil
 }
 
-// ExecuteActions send one transaction for all the Defi interactions
-func (c *ActualClient) ExecuteActions(actions *Actions) error {
-	handlers := []common.Address{}
-	datas := make([][]byte, 0)
-	totalEthers := big.NewInt(0)
-	approvalTokens := make([]common.Address, 0)
-	approvalAmounts := make([]*big.Int, 0)
-	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
-		if actions.Actions[i].ApprovalTokenAmount != nil {
-			approvalTokens = append(approvalTokens, actions.Actions[i].ApprovalToken)
-			approvalAmounts = append(approvalAmounts, actions.Actions[i].ApprovalTokenAmount)
-		}
-	}
-
-	if len(approvalTokens) > 0 {
-		parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
-		if err != nil {
-			return err
-		}
-		injectData, err := parsed.Pack("inject", approvalTokens, approvalAmounts)
-
-		if err != nil {
-			return err
-		}
-
-		handlers = append([]common.Address{common.HexToAddress(hErcInAddr)}, handlers...)
-		datas = append([][]byte{injectData}, datas...)
-	}
-
-	proxy, err := furucombo.NewFurucombo(common.HexToAddress(FurucomboAddr), c.conn)
-	if err != nil {
-		return nil
-	}
-
-	gasPrice, err := c.conn.SuggestGasPrice(context.Background())
+// ExecuteActions sends one transaction for all the Defi interactions.
+func (c *DefiClient) ExecuteActions(actions *Actions) error {
+	gasPrice, err := c.SuggestGasPrice(nil)
 	if err != nil {
 		return err
+	}
+
+	return c.ExecuteActionsWithGasPrice(actions, gasPrice)
+}
+
+// SuggestGasPrice provides an estimation of the gas price based on the `blockNum`.
+// If the blockNum is `nil`, it will automatically use the latest block data.
+// The user can also specify a specific `blockNum` so that block will be used for the prediction.
+func (c *DefiClient) SuggestGasPrice(blockNum *big.Int) (*big.Int, error) {
+	if blockNum == nil {
+		header, err := c.conn.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			return nil, err
+		}
+		blockNum = header.Number
+	}
+
+	block, err := c.conn.BlockByNumber(context.Background(), blockNum)
+	if err != nil {
+		return nil, err
+	}
+
+	// If there is no transaction in the current block we fail back to the previous block.
+	if block.Transactions().Len() == 0 {
+		prvBlock := big.NewInt(0)
+		prvBlock.Sub(blockNum, big.NewInt(1))
+		return c.SuggestGasPrice(prvBlock)
+	}
+
+	sum := big.NewInt(0)
+	for _, transaction := range block.Transactions() {
+		sum.Add(sum, transaction.GasPrice())
+	}
+
+	size := big.NewInt(int64(len(block.Transactions())))
+	average := big.NewInt(0)
+
+	average.Div(sum, size)
+	return average, nil
+}
+
+// ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice.
+func (c *DefiClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
+	handlers, datas, totalEthers, err := c.CombineActions(actions)
+	if err != nil {
+		return err
+	}
+
+	proxy, err := furucombo.NewFurucombo(common.HexToAddress(ProxyAddr), c.conn)
+	if err != nil {
+		return nil
 	}
 
 	opts := &bind.TransactOpts{
@@ -252,11 +271,45 @@ func (c *ActualClient) ExecuteActions(actions *Actions) error {
 		return fmt.Errorf("tx receipt status is not 1, indicating a failure occurred")
 	}
 	return nil
+}
 
+// CombineActions takes in an `Actions` and returns a slice of handler address and a slice of call data
+// if the combine is not successful, it will return the error.
+func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byte, *big.Int, error) {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	approvalTokens := make([]common.Address, 0)
+	approvalAmounts := make([]*big.Int, 0)
+
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+		approvalTokens = append(approvalTokens, actions.Actions[i].approvalTokens...)
+		approvalAmounts = append(approvalAmounts, actions.Actions[i].approvalTokenAmounts...)
+	}
+
+	if len(approvalTokens) > 0 {
+		parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		injectData, err := parsed.Pack("inject", approvalTokens, approvalAmounts)
+
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		handlers = append([]common.Address{common.HexToAddress(hFunds)}, handlers...)
+		datas = append([][]byte{injectData}, datas...)
+	}
+
+	return handlers, datas, totalEthers, nil
 }
 
 // SupplyFundActions transfer a certain amount of fund to the proxy
-func (c *ActualClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
+func (c *DefiClient) SupplyFundActions(size *big.Int, coin coinType) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(herc20tokenin.Herc20tokeninABI))
 	if err != nil {
 		return nil
@@ -269,36 +322,40 @@ func (c *ActualClient) SupplyFundActions(size *big.Int, coin coinType) *Actions 
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hFunds),
-				Data:         injectData,
-				EthersNeeded: big.NewInt(0),
+				handlerAddr:  common.HexToAddress(hFunds),
+				data:         injectData,
+				ethersNeeded: big.NewInt(0),
 			},
 		},
 	}
 }
 
-// Action represents one action, e.g. supply to Compound, swap on Uniswap
-type Action struct {
-	HandlerAddr         common.Address
-	Data                []byte
-	EthersNeeded        *big.Int
-	ApprovalToken       common.Address
-	ApprovalTokenAmount *big.Int
+// action represents one action, e.g. supply to Compound, swap on Uniswap
+type action struct {
+	handlerAddr  common.Address
+	data         []byte
+	ethersNeeded *big.Int
+	// There could be multiple tokens that we need to approve in the case of say Curve add liquidity or Flash loan
+	approvalTokens       []common.Address
+	approvalTokenAmounts []*big.Int
 }
 
-// Actions represents a list of Action
+// Actions represents a list of Action.
 type Actions struct {
-	Actions []Action
+	Actions []action
 }
 
 // Add adds actions together
-func (actions *Actions) Add(newActions *Actions) error {
-	if (newActions == nil) {
+// This is a variadic function so user can pass in any number of actions.
+func (actions *Actions) Add(newActionss ...*Actions) error {
+	if newActionss == nil {
 		return fmt.Errorf("new action is nil")
 	}
-	actions.Actions = append(actions.Actions, newActions.Actions...)
+	for _, newActions := range newActionss {
+		actions.Actions = append(actions.Actions, newActions.Actions...)
+	}
 	return nil
 }
 
@@ -306,12 +363,12 @@ func (actions *Actions) Add(newActions *Actions) error {
 
 // UniswapClient struct
 type UniswapClient struct {
-	client  *ActualClient
+	client  *DefiClient
 	uniswap *uniswap.Uniswap
 }
 
-// Uniswap returns a uniswap client
-func (c *ActualClient) Uniswap() *UniswapClient {
+// Uniswap returns a uniswap client.
+func (c *DefiClient) Uniswap() *UniswapClient {
 	uniClient := new(UniswapClient)
 	uniClient.client = c
 	uniswap, err := uniswap.NewUniswap(common.HexToAddress(uniswapAddr), c.conn)
@@ -324,7 +381,7 @@ func (c *ActualClient) Uniswap() *UniswapClient {
 	return uniClient
 }
 
-// TxHash represents a transaction hash
+// TxHash represents a transaction hash.
 type TxHash string
 
 // Swap in the Uniswap Exchange.
@@ -395,33 +452,33 @@ func (c *UniswapClient) swapTokenToETH(size int64, quoteCurrency coinType, recei
 	return nil
 }
 
-// SwapActions create a new swap action
+// SwapActions create a new swap action.
 func (c *UniswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
 	var callData []byte
 	var ethersNeeded = big.NewInt(0)
 	if quoteCurrency == ETH {
 		ethersNeeded = size
-		callData = c.swapETHToTokenData(size, baseCurrency)
+		callData = swapETHToTokenData(size, baseCurrency)
 	} else {
 		if baseCurrency == ETH {
-			callData = c.swapTokenToETHData(size, quoteCurrency)
+			callData = swapTokenToETHData(size, quoteCurrency)
 		} else {
-			callData = c.swapTokenToTokenData(size, baseCurrency, quoteCurrency)
+			callData = swapTokenToTokenData(size, baseCurrency, quoteCurrency)
 		}
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hUniswapAddr),
-				Data:         callData,
-				EthersNeeded: ethersNeeded,
+				handlerAddr:  common.HexToAddress(hUniswapAddr),
+				data:         callData,
+				ethersNeeded: ethersNeeded,
 			},
 		},
 	}
 }
 
-func (c *UniswapClient) swapETHToTokenData(size *big.Int, baseCurrency coinType) []byte {
+func swapETHToTokenData(size *big.Int, baseCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -434,7 +491,7 @@ func (c *UniswapClient) swapETHToTokenData(size *big.Int, baseCurrency coinType)
 	return data
 }
 
-func (c *UniswapClient) swapTokenToETHData(size *big.Int, quoteCurrency coinType) []byte {
+func swapTokenToETHData(size *big.Int, quoteCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -447,7 +504,7 @@ func (c *UniswapClient) swapTokenToETHData(size *big.Int, quoteCurrency coinType
 	return data
 }
 
-func (c *UniswapClient) swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency coinType) []byte {
+func swapTokenToTokenData(size *big.Int, baseCurrency coinType, quoteCurrency coinType) []byte {
 	parsed, err := abi.JSON(strings.NewReader(huniswap.HuniswapABI))
 	if err != nil {
 		return nil
@@ -461,23 +518,62 @@ func (c *UniswapClient) swapTokenToTokenData(size *big.Int, baseCurrency coinTyp
 	return data
 }
 
+// FlashSwapActions create an action to perform flash swap on Uniswap.
+func (c *UniswapClient) FlashSwapActions(size *big.Int, coinBorrow coinType, coinRepay coinType, actions *Actions) *Actions {
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	for i := 0; i < len(actions.Actions); i++ {
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+	}
+
+	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
+	if err != nil {
+		return nil
+	}
+	payloadData, err := proxy.Pack("execs", handlers, datas)
+	if err != nil {
+		return nil
+	}
+	swapperAbi, err := abi.JSON(strings.NewReader(swapper.SwapperABI))
+	if err != nil {
+		return nil
+	}
+	// skip the first 4 bytes to omit the function selector
+	flashSwapData, err := swapperAbi.Pack("startSwap", CoinToAddressMap[coinBorrow], size, CoinToAddressMap[coinRepay], payloadData[4:])
+	if err != nil {
+		return nil
+	}
+
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:  common.HexToAddress(hSwapper),
+				data:         flashSwapData,
+				ethersNeeded: totalEthers,
+			},
+		},
+	}
+}
+
 // Compound---------------------------------------------------------------------
 
 // CompoundClient is an instance of Compound protocol.
 type CompoundClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
-// Compound returns a compound client
-func (c *ActualClient) Compound() *CompoundClient {
+// Compound returns a compound client.
+func (c *DefiClient) Compound() *CompoundClient {
 	compoundClient := new(CompoundClient)
 	compoundClient.client = c
 
 	return compoundClient
 }
 
-// Supply supplies token to compound
-// amoutn decimal is 1e18
+// Supply supplies token to compound.
 func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	var (
 		tx  *types.Transaction
@@ -525,8 +621,7 @@ func (c *CompoundClient) Supply(amount int64, coin coinType) error {
 	return nil
 }
 
-// Redeem supplies token to compound
-// amount decimal is 1e8
+// Redeem supplies token to compound.
 func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 	var (
 		tx  *types.Transaction
@@ -571,7 +666,7 @@ func (c *CompoundClient) Redeem(amount int64, coin coinType) error {
 	return nil
 }
 
-// BalanceOf return the balance of given cToken
+// BalanceOf return the balance of given cToken.
 func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 	var (
 		val *big.Int
@@ -645,7 +740,7 @@ func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction,
 	return tx, nil
 }
 
-// SupplyActions create a supply action
+// SupplyActions create a supply action to supply asset to Compound.
 func (c *CompoundClient) SupplyActions(size *big.Int, coin coinType) *Actions {
 	if coin == ETH {
 		return c.supplyActionsETH(size, coin)
@@ -664,11 +759,11 @@ func (c *CompoundClient) supplyActionsETH(size *big.Int, coin coinType) *Actions
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hCEtherAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hCEtherAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -684,19 +779,19 @@ func (c *CompoundClient) supplyActionsERC20(size *big.Int, coin coinType) *Actio
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:         common.HexToAddress(hCTokenAddr),
-				Data:                mintData,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToAddressMap[coin],
-				ApprovalTokenAmount: size,
+				handlerAddr:          common.HexToAddress(hCTokenAddr),
+				data:                 mintData,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
 }
 
-// RedeemActions create a Compound redeem action to be executed
+// RedeemActions create a Compound redeem action to be executed.
 func (c *CompoundClient) RedeemActions(size *big.Int, coin coinType) *Actions {
 	if coin == ETH {
 		return c.redeemActionsETH(size, coin)
@@ -715,11 +810,11 @@ func (c *CompoundClient) redeemActionsETH(size *big.Int, coin coinType) *Actions
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hCEtherAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hCEtherAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -735,27 +830,27 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:         common.HexToAddress(hCTokenAddr),
-				Data:                redeemData,
-				EthersNeeded:        big.NewInt(0),
-				ApprovalToken:       CoinToCompoundMap[coin],
-				ApprovalTokenAmount: size,
+				handlerAddr:          common.HexToAddress(hCTokenAddr),
+				data:                 redeemData,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToCompoundMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
 }
 
-// FlashLoanActions create an action to get flashloan
+// FlashLoanActions create an action to perform Uniswap flashloan.
 func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Actions) *Actions {
 	handlers := []common.Address{}
 	datas := make([][]byte, 0)
 	totalEthers := big.NewInt(0)
 	for i := 0; i < len(actions.Actions); i++ {
-		handlers = append(handlers, actions.Actions[i].HandlerAddr)
-		datas = append(datas, actions.Actions[i].Data)
-		totalEthers.Add(totalEthers, actions.Actions[i].EthersNeeded)
+		handlers = append(handlers, actions.Actions[i].handlerAddr)
+		datas = append(datas, actions.Actions[i].data)
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
 	}
 
 	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
@@ -773,11 +868,11 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	// skip the first 4 bytes to omit the function selector
 	flashLoanData, err := haave.Pack("flashLoan", CoinToAddressMap[coin], size, payloadData[4:])
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hAaveAddr),
-				Data:         flashLoanData,
-				EthersNeeded: totalEthers,
+				handlerAddr:  common.HexToAddress(hAaveAddr),
+				data:         flashLoanData,
+				ethersNeeded: totalEthers,
 			},
 		},
 	}
@@ -792,14 +887,14 @@ func (c *CompoundClient) getPoolAddrFromCoin(coin coinType) (common.Address, err
 
 // yearn-----------------------------------------------------------------------------------------------------
 
-// YearnClient is an instance of Yearn protocol.
+// YearnClient is an instance of Compound protocol.
 type YearnClient struct {
-	client       *ActualClient
+	client       *DefiClient
 	tokenToVault map[common.Address]common.Address
 }
 
-// Yearn returns a Yearn client
-func (c *ActualClient) Yearn() *YearnClient {
+// Yearn returns a Yearn client.
+func (c *DefiClient) Yearn() *YearnClient {
 	yearnClient := new(YearnClient)
 	yearnClient.client = c
 
@@ -912,9 +1007,9 @@ func (c *YearnClient) removeLiquidity(size *big.Int, coin coinType) error {
 	return nil
 }
 
-// AddLiquidityActions creates an add liquidity action to Yearn
+// AddLiquidityActions creates an add liquidity action to Yearn.
 func (c *YearnClient) AddLiquidityActions(size *big.Int, coin coinType) *Actions {
-	if (coin == ETH) {
+	if coin == ETH {
 		return c.addLiquidityActionsETH(size, coin)
 	} else {
 		return c.addLiquidityActionsERC20(size, coin)
@@ -931,11 +1026,11 @@ func (c *YearnClient) addLiquidityActionsETH(size *big.Int, coin coinType) *Acti
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: size,
+				handlerAddr:  common.HexToAddress(hYearnAddr),
+				data:         data,
+				ethersNeeded: size,
 			},
 		},
 	}
@@ -956,21 +1051,21 @@ func (c *YearnClient) addLiquidityActionsERC20(size *big.Int, coin coinType) *Ac
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
-				ApprovalToken: CoinToAddressMap[coin],
-				ApprovalTokenAmount: size,
+				handlerAddr:          common.HexToAddress(hYearnAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[coin]},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
 }
 
-// RemoveLiquidityActions creates a remove liquidity action to Yearn
+// RemoveLiquidityActions creates a remove liquidity action to Yearn.
 func (c *YearnClient) RemoveLiquidityActions(size *big.Int, coin coinType) *Actions {
-	if (coin == ETH) {
+	if coin == ETH {
 		return c.removeLiquidityActionsETH(size, coin)
 	} else {
 		return c.removeLiquidityActionsERC20(size, coin)
@@ -987,13 +1082,13 @@ func (c *YearnClient) removeLiquidityActionsETH(size *big.Int, coin coinType) *A
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
-				ApprovalToken: common.HexToAddress(yETHVaultAddr),
-				ApprovalTokenAmount: size,
+				handlerAddr:          common.HexToAddress(hYearnAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{common.HexToAddress(yETHVaultAddr)},
+				approvalTokenAmounts: []*big.Int{size},
 			},
 		},
 	}
@@ -1009,27 +1104,26 @@ func (c *YearnClient) removeLiquidityActionsERC20(size *big.Int, coin coinType) 
 		return nil
 	}
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hYearnAddr),
-				Data:         data,
-				EthersNeeded: big.NewInt(0),
+				handlerAddr:  common.HexToAddress(hYearnAddr),
+				data:         data,
+				ethersNeeded: big.NewInt(0),
 			},
 		},
 	}
 }
 
-
 // Aave----------------------------------------------------------------------------
 
 // AaveClient is an instance of Aave protocol.
 type AaveClient struct {
-	client      *ActualClient
+	client      *DefiClient
 	lendingPool *lendingpool.Lendingpool
 }
 
-// Aave returns a Aave client
-func (c *ActualClient) Aave() *AaveClient {
+// Aave returns an Aave client which contains functions that you can use to interact with Aave.
+func (c *DefiClient) Aave() *AaveClient {
 	aaveClient := new(AaveClient)
 	aaveClient.client = c
 
@@ -1041,7 +1135,7 @@ func (c *ActualClient) Aave() *AaveClient {
 	return aaveClient
 }
 
-// Lend lend to the lending pool
+// Lend lend to the Aave lending pool.
 func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 	opts := &bind.TransactOpts{
 		From:     c.client.opts.From,
@@ -1062,12 +1156,12 @@ func (c *AaveClient) Lend(size *big.Int, coin coinType) error {
 	return nil
 }
 
-// Borrow borrow money from lending pool
+// Borrow borrow money from lending pool.
 func (c *AaveClient) Borrow(size *big.Int, coin coinType, interestRate rateModel) error {
 	return nil
 }
 
-// ReserveData is a struct described the status of Aave lending pool
+// ReserveData is a struct described the status of Aave lending pool.
 type ReserveData struct {
 	CurrentATokenBalance     *big.Int
 	CurrentBorrowBalance     *big.Int
@@ -1081,7 +1175,7 @@ type ReserveData struct {
 	UsageAsCollateralEnabled bool
 }
 
-// GetUserReserveData get the reserve data
+// GetUserReserveData get the reserve data.
 func (c *AaveClient) GetUserReserveData(addr common.Address, user common.Address) (ReserveData, error) {
 	data, err := c.lendingPool.GetUserReserveData(nil, addr, user)
 	if err != nil {
@@ -1094,17 +1188,17 @@ func (c *AaveClient) GetUserReserveData(addr common.Address, user common.Address
 
 // KyberswapClient struct
 type KyberswapClient struct {
-	client *ActualClient
+	client *DefiClient
 }
 
-// Kyberswap returns a Kyberswap client
-func (c *ActualClient) Kyberswap() *KyberswapClient {
+// Kyberswap returns a Kyberswap client.
+func (c *DefiClient) Kyberswap() *KyberswapClient {
 	kyberClient := new(KyberswapClient)
 	kyberClient.client = c
 	return kyberClient
 }
 
-// SwapActions creates a swap action
+// SwapActions creates a swap action.
 func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
 	var (
 		data         []byte
@@ -1133,18 +1227,207 @@ func (c *KyberswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	}
 
 	return &Actions{
-		Actions: []Action{
+		Actions: []action{
 			{
-				HandlerAddr:  common.HexToAddress(hKyberAddr),
-				Data:         data,
-				EthersNeeded: ethersNeeded,
+				handlerAddr:  common.HexToAddress(hKyberAddr),
+				data:         data,
+				ethersNeeded: ethersNeeded,
 			},
 		},
 	}
 
 }
 
-// MakerDao
+// Sushiswap----------------------------------------------------------------------
+
+// SushiswapClient struct
+type SushiswapClient struct {
+	client *DefiClient
+}
+
+// Sushiswap returns a Sushiswap client.
+func (c *DefiClient) Sushiswap() *SushiswapClient {
+	sushiswapClient := new(SushiswapClient)
+	sushiswapClient.client = c
+	return sushiswapClient
+}
+
+// SwapActions create a new swap action.
+func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quoteCurrency coinType) *Actions {
+	var callData []byte
+	var ethersNeeded = big.NewInt(0)
+	var approvalTokens []common.Address = nil
+	var approvalTokenAmounts []*big.Int = nil
+
+	if quoteCurrency == ETH {
+		ethersNeeded = size
+		callData = swapETHToTokenData(size, baseCurrency)
+	} else {
+		if baseCurrency == ETH {
+			approvalTokens = []common.Address{CoinToAddressMap[quoteCurrency]}
+			approvalTokenAmounts = []*big.Int{size}
+			callData = swapTokenToETHData(size, quoteCurrency)
+		} else {
+			approvalTokens = []common.Address{CoinToAddressMap[quoteCurrency]}
+			approvalTokenAmounts = []*big.Int{size}
+			callData = swapTokenToTokenData(size, baseCurrency, quoteCurrency)
+		}
+	}
+
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:  common.HexToAddress(hSushiswapAddr),
+				data:         callData,
+				ethersNeeded: ethersNeeded,
+				approvalTokens: approvalTokens,
+				approvalTokenAmounts: approvalTokenAmounts,
+			},
+		},
+	}
+}
+
+// Curve-------------------------------------------------------------------------
+
+// CurveClient struct
+type CurveClient struct {
+	client *DefiClient
+}
+
+// Curve returns a Curve client.
+func (c *DefiClient) Curve() *CurveClient {
+	curveClient := new(CurveClient)
+	curveClient.client = c
+	return curveClient
+}
+
+// ExchangeActions creates a Curve exchange action to swap from one stable coin to another.
+func (c *CurveClient) ExchangeActions(
+	handler common.Address, token1Addr common.Address, token2Addr common.Address,
+	i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("exchange", handler, token1Addr, token2Addr, i, j, dx, minDy)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{token1Addr},
+				approvalTokenAmounts: []*big.Int{dx},
+			},
+		},
+	}
+}
+
+// ExchangeUnderlyingActions creates a Curve exchangeUnderlying action.
+// `handler` is the address of the Curve pool.
+// `token1Addr` is the address of the input token.
+// `token2Addr` is the address of the output token.
+// `i` is the index of the input token in the pool.
+// `j` is the index of the output token in the pool.
+// `dx` is the amount of the input token that you want to swap
+// `minDy` is the minimum amount of the output token that you want to receive.
+func (c *CurveClient) ExchangeUnderlyingActions(handler common.Address, token1Addr common.Address, token2Addr common.Address, i *big.Int, j *big.Int, dx *big.Int, minDy *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("exchangeUnderlying", handler, token1Addr, token2Addr, i, j, dx, minDy)
+	if err != nil {
+		return nil
+	}
+
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{token1Addr},
+				approvalTokenAmounts: []*big.Int{dx},
+			},
+		},
+	}
+}
+
+// AddLiquidityActions adds liqudity to the given pool.
+// `handler` is the address of the Curve pool.
+// `pool` is the address of the pool token, e.g. bCRV token or 3CRV token.
+// `tokens` is the addresses of the tokens that is in the pool.
+// `amounts` is how much amount of each tokens you want to deposit.
+// `minAmount` is the minimum amount of pool token that you want to get back as a result.
+func (c *CurveClient) AddLiquidityActions(
+	handler common.Address, pool common.Address, tokens []common.Address,
+	amounts []*big.Int, minAmount *big.Int) *Actions {
+
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("addLiquidity", handler, pool, tokens, amounts, minAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       tokens,
+				approvalTokenAmounts: amounts,
+			},
+		},
+	}
+}
+
+// RemoveLiquidityActions creates remove liquidity action on Curve.
+// `handler` is the address of the Curve pool.
+// `pool` is the address of the pool token, e.g. bCRV token or 3CRV token.
+// `tokenI` is the addresse of the tokens that you want to remove.
+// `tokenAmount` is how much amount of token you want to deposit.
+// `i` is the index of the token in the given pool.
+// `minAmount` is the minimum amount of the underlying token that you want to get back as a result.
+func (c *CurveClient) RemoveLiquidityActions(
+	handler common.Address, pool common.Address, tokenI common.Address, tokenAmount *big.Int, i *big.Int, minAmount *big.Int,
+) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hcurve.HcurveABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("removeLiquidityOneCoin", handler, pool, tokenI, tokenAmount, i, minAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hCurveAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{pool},
+				approvalTokenAmounts: []*big.Int{tokenAmount},
+			},
+		},
+	}
+}
+
+// Maker------------------------------------------------------------------------
 
 // MakerClient is an instance of Maker protocol.
 type MakerClient struct {
@@ -1176,7 +1459,7 @@ func (c *MakerClient) generateDaiActionETH(collateralAmount *big.Int, daiAmount 
 
 	data, err := parsed.Pack("openLockETHAndDraw", collateralAmount, CoinToJoinMap[ETH], CoinToJoinMap[DAI], CoinToIlkMap[ETH], daiAmount)
 	log.Printf("hello hello~ %v %v", hex.EncodeToString(data), daiAmount)
-	
+
 	if err != nil {
 		return nil
 	}
@@ -1198,8 +1481,8 @@ func (c *MakerClient) generateDaiActionErc20(collateralAmount *big.Int, daiAmoun
 
 // utility------------------------------------------------------------------------
 
-// Approve approves ERC-20 token transfer
-func Approve(client *ActualClient, coin coinType, addr common.Address, size *big.Int) error {
+// Approve approves ERC-20 token transfer.
+func Approve(client *DefiClient, coin coinType, addr common.Address, size *big.Int) error {
 	erc20Contract, err := erc20.NewErc20(CoinToAddressMap[coin], client.conn)
 	if err != nil {
 		return err
