@@ -213,7 +213,11 @@ type DefiClient struct {
 
 // BalanceOf returns the balance of a given coin.
 func (c *DefiClient) BalanceOf(coin coinType) (*big.Int, error) {
-	erc20, err := erc20.NewErc20(CoinToAddressMap[coin], c.conn)
+	return c.balanceOf(CoinToAddressMap[coin])
+}
+
+func (c *DefiClient) balanceOf(addr common.Address) (*big.Int, error) {
+	erc20, err := erc20.NewErc20(addr, c.conn)
 	if err != nil {
 		return nil, err
 	}
@@ -317,8 +321,22 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 		handlers = append(handlers, actions.Actions[i].handlerAddr)
 		datas = append(datas, actions.Actions[i].data)
 		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
-		approvalTokens = append(approvalTokens, actions.Actions[i].approvalTokens...)
-		approvalAmounts = append(approvalAmounts, actions.Actions[i].approvalTokenAmounts...)
+		if len(actions.Actions[i].approvalTokens) > 0 {
+			for j := 0; j < len(actions.Actions[i].approvalTokens); j++ {
+				tokenAddr := actions.Actions[i].approvalTokens[j]
+				tokenAmount := actions.Actions[i].approvalTokenAmounts[j]
+				approvalTokens = append(approvalTokens, tokenAddr)
+				balance, err := c.balanceOf(tokenAddr)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if balance.Cmp(tokenAmount) == 1 {
+					approvalAmounts = append(approvalAmounts, tokenAmount)
+				} else {
+					approvalAmounts = append(approvalAmounts, balance)
+				}
+			}
+		}
 	}
 
 	if len(approvalTokens) > 0 {

@@ -576,7 +576,7 @@ func TestInteractWithFurucomboMakerUSDC(t *testing.T) {
 	outputAmount := big.NewInt(0)
 	outputAmount.SetString("520000000000000000000", 10)
 	actions.Add(
-		defiClient.Uniswap().SwapActions(big.NewInt(1e18), USDC, ETH),
+		defiClient.Uniswap().SwapActions(big.NewInt(5e18), USDC, ETH),
 		defiClient.Maker().GenerateDaiAction(collateralAmount, outputAmount, USDC),
 	)
 
