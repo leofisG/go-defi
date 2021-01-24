@@ -179,7 +179,7 @@ func TestInteractWithFurucomboWithYearn(t *testing.T) {
 	actions.Add(
 		defiClient.Yearn().RemoveLiquidityActions(big.NewInt(1e18), ETH),
 	)
-	Approve(defiClient, yWETH, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, yWETH, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
 	err = defiClient.ExecuteActions(actions)
 	if err != nil {
 		t.Errorf("Failed to remove liquidity in yearn: %v", err)
@@ -225,7 +225,7 @@ func TestInteractWithFurucomboWithCompoundNew(t *testing.T) {
 }
 
 func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
 	if err != nil {
@@ -256,8 +256,8 @@ func TestInteractWithFurucomboWithCompoundERC20New(t *testing.T) {
 }
 
 func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
-	Approve(defiClient, cDAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
+	Approve(defiClient, cDAI, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
 
 	beforeCDai, err := defiClient.Compound().BalanceOf(DAI)
 
@@ -290,7 +290,7 @@ func TestInteractWithFurucomboWithCompoundERC20withRedeem(t *testing.T) {
 }
 
 func TestInteractWithFurucomboFlashLoan(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(1e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
 
 	actions := new(Actions)
 	flashLoanActions := new(Actions)
@@ -397,7 +397,7 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 }
 
 func TestInteractWithFurucomboFlashLoanCompound(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(2e18))
 	beforecDAI, err := defiClient.BalanceOf(cDAI)
 	if err != nil {
 		t.Errorf("Error getting DAI balance")
@@ -470,7 +470,7 @@ func TestInteractWithFurucomboFlashLoanCompound(t *testing.T) {
 // }
 
 func TestInteractWithFurucomboCurve(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(2e18))
 	beforeUSDC, err := defiClient.BalanceOf(USDC)
 	if err != nil {
 		t.Errorf("Error getting DAI balance")
@@ -503,7 +503,7 @@ func TestInteractWithFurucomboCurve(t *testing.T) {
 
 // Supplying DAI to the Curve 3 pool
 func TestInteractWithFurucomboCurveAddLiquidity(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(FurucomboAddr), big.NewInt(2e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(2e18))
 	beforeDAI, err := defiClient.BalanceOf(DAI)
 	if err != nil {
 		t.Errorf("Error getting DAI balance")
