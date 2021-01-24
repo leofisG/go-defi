@@ -1546,6 +1546,87 @@ func (c *MakerClient) generateDaiActionErc20(collateralAmount *big.Int, daiAmoun
 	}
 }
 
+// DepositCollateralActions deposits additional collateral to the given vault.
+func (c *MakerClient) DepositCollateralActions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
+	if (collateralType == ETH) {
+		return c.depositETHActions(collateralAmount, collateralType, cdp)
+	} else {
+		return c.depositERC20Actions(collateralAmount, collateralType, cdp)
+	}
+}
+
+
+func (c *MakerClient) depositETHActions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("safeLockETH", collateralAmount, CoinToJoinMap[ETH], cdp)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:  common.HexToAddress(hMakerDaoAddr),
+				data:         data,
+				ethersNeeded: collateralAmount,
+			},
+		},
+	}
+}
+
+
+func (c *MakerClient) depositERC20Actions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("safeLockGem", CoinToJoinMap[collateralType], cdp, collateralAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hMakerDaoAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[collateralType]},
+				approvalTokenAmounts: []*big.Int{collateralAmount},
+			},
+		},
+	}
+}
+
+// WipeAction creates a wipe action to decrease debt for th given cdp/vault.
+func (c *MakerClient) WipeAction(daiAmount *big.Int, cdp *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("wipe", CoinToJoinMap[DAI], cdp, daiAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hMakerDaoAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+			},
+		},
+	}
+}
+
+
 // utility------------------------------------------------------------------------
 
 // Approve approves ERC-20 token transfer.

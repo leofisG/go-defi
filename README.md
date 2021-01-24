@@ -27,6 +27,9 @@ This library support flash loan, so you can use this library to do things like a
 - Sushiswap
     - Swap: `client.Sushiswap().SwapActions()`
 - MakerDao
+	- Create New Vault: `client.Maker().GenerateDaiAction()`
+	- Burn DAI and reduce debt: `client.Maker().WipeAction()`
+	- Add more collateral to vault: `client.Maker().DepositCollateralActions()`
 
 ### APIs
 
