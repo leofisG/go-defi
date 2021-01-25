@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/524119574/go-defi/binding/hctoken"
 	"github.com/524119574/go-defi/binding/hcurve"
 	"github.com/524119574/go-defi/binding/hkyber"
+	"github.com/524119574/go-defi/binding/hmaker"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
 
@@ -69,6 +71,10 @@ const (
 	ZRX coinType = iota
 	// BUSD is the Binance USD token.
 	BUSD coinType = iota
+	// YFI is the yearn governance token.
+	YFI coinType = iota
+	// AAVE is the Aave governance token.
+	AAVE coinType = iota
 
 	// cToken is the token that user receive after deposit into Yearn
 	cETH = iota
@@ -90,7 +96,7 @@ const (
 	// Proxy and Handler related addresses
 
 	// ProxyAddr is the address of the proxy contract.
-	ProxyAddr string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"	
+	ProxyAddr     string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
 	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
 	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
 	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
@@ -159,6 +165,31 @@ var CoinToCompoundMap = map[coinType]common.Address{
 	USDC: common.HexToAddress("0x39aa39c021dfbae8fac545936693ac917d5e7563"),
 }
 
+// CoinToJoinMap maps the coin type to its corresponding Join which is a MakerDao terminology meaning an adapter to
+// deposit and withdraw unlocked collateral.
+var CoinToJoinMap = map[coinType]common.Address{
+	DAI:  common.HexToAddress("0x9759A6Ac90977b93B58547b4A71c78317f391A28"),
+	ETH:  common.HexToAddress("0x2F0b23f53734252Bda2277357e97e1517d6B042A"),
+	USDC: common.HexToAddress("0x2600004fd1585f7270756DDc88aD9cfA10dD0428"),
+	YFI:  common.HexToAddress("0x3ff33d9162aD47660083D7DC4bC02Fb231c81677"),
+	USDT: common.HexToAddress("0x0Ac6A1D74E84C2dF9063bDDc31699FF2a2BB22A2"),
+	UNI:  common.HexToAddress("0x2502F65D77cA13f183850b5f9272270454094A08"),
+	AAVE: common.HexToAddress("0x24e459F61cEAa7b1cE70Dbaea938940A7c5aD46e"),
+}
+
+// CoinToIlkMap maps the coin type to the corresponding Ilk as found in here:
+// https://etherscan.io/address/0x8b4ce5DCbb01e0e1f0521cd8dCfb31B308E52c24
+// Ilk is a MakerDao collateral type, each Ilk correspond to a type of collateral and
+// user can query it's name, symbol, dec, gem, pip, join and flip.
+var CoinToIlkMap = map[coinType][32]byte{
+	ETH:  byte32PutString("4554482d41000000000000000000000000000000000000000000000000000000"),
+	YFI:  byte32PutString("5946492d41000000000000000000000000000000000000000000000000000000"),
+	USDC: byte32PutString("555344432d420000000000000000000000000000000000000000000000000000"),
+	USDT: byte32PutString("555344542d410000000000000000000000000000000000000000000000000000"),
+	UNI:  byte32PutString("554e4956324441494554482d4100000000000000000000000000000000000000"),
+	AAVE: byte32PutString("414156452d410000000000000000000000000000000000000000000000000000"),
+}
+
 // Client is the new interface
 type Client interface {
 	Uniswap() UniswapClient
@@ -182,7 +213,11 @@ type DefiClient struct {
 
 // BalanceOf returns the balance of a given coin.
 func (c *DefiClient) BalanceOf(coin coinType) (*big.Int, error) {
-	erc20, err := erc20.NewErc20(CoinToAddressMap[coin], c.conn)
+	return c.balanceOf(CoinToAddressMap[coin])
+}
+
+func (c *DefiClient) balanceOf(addr common.Address) (*big.Int, error) {
+	erc20, err := erc20.NewErc20(addr, c.conn)
 	if err != nil {
 		return nil, err
 	}
@@ -286,8 +321,22 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 		handlers = append(handlers, actions.Actions[i].handlerAddr)
 		datas = append(datas, actions.Actions[i].data)
 		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
-		approvalTokens = append(approvalTokens, actions.Actions[i].approvalTokens...)
-		approvalAmounts = append(approvalAmounts, actions.Actions[i].approvalTokenAmounts...)
+		if len(actions.Actions[i].approvalTokens) > 0 {
+			for j := 0; j < len(actions.Actions[i].approvalTokens); j++ {
+				tokenAddr := actions.Actions[i].approvalTokens[j]
+				tokenAmount := actions.Actions[i].approvalTokenAmounts[j]
+				approvalTokens = append(approvalTokens, tokenAddr)
+				balance, err := c.balanceOf(tokenAddr)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if balance.Cmp(tokenAmount) == 1 {
+					approvalAmounts = append(approvalAmounts, tokenAmount)
+				} else {
+					approvalAmounts = append(approvalAmounts, balance)
+				}
+			}
+		}
 	}
 
 	if len(approvalTokens) > 0 {
@@ -1277,10 +1326,10 @@ func (c *SushiswapClient) SwapActions(size *big.Int, baseCurrency coinType, quot
 	return &Actions{
 		Actions: []action{
 			{
-				handlerAddr:  common.HexToAddress(hSushiswapAddr),
-				data:         callData,
-				ethersNeeded: ethersNeeded,
-				approvalTokens: approvalTokens,
+				handlerAddr:          common.HexToAddress(hSushiswapAddr),
+				data:                 callData,
+				ethersNeeded:         ethersNeeded,
+				approvalTokens:       approvalTokens,
 				approvalTokenAmounts: approvalTokenAmounts,
 			},
 		},
@@ -1427,6 +1476,76 @@ func (c *CurveClient) RemoveLiquidityActions(
 	}
 }
 
+// Maker------------------------------------------------------------------------
+
+// MakerClient is an instance of Maker protocol.
+type MakerClient struct {
+	client *DefiClient
+}
+
+// Maker creates a new instance of MakerClient
+func (c *DefiClient) Maker() *MakerClient {
+	makerClient := new(MakerClient)
+	makerClient.client = c
+	return makerClient
+}
+
+// GenerateDaiAction generate an action to create a vault and get some DAI
+func (c *MakerClient) GenerateDaiAction(collateralAmount *big.Int, daiAmount *big.Int, collateralType coinType) *Actions {
+	if collateralType == ETH {
+		return c.generateDaiActionETH(collateralAmount, daiAmount)
+	} else {
+		return c.generateDaiActionErc20(collateralAmount, daiAmount, collateralType)
+	}
+}
+
+func (c *MakerClient) generateDaiActionETH(collateralAmount *big.Int, daiAmount *big.Int) *Actions {
+
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("openLockETHAndDraw", collateralAmount, CoinToJoinMap[ETH], CoinToJoinMap[DAI], CoinToIlkMap[ETH], daiAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:  common.HexToAddress(hMakerDaoAddr),
+				data:         data,
+				ethersNeeded: collateralAmount,
+			},
+		},
+	}
+}
+
+func (c *MakerClient) generateDaiActionErc20(collateralAmount *big.Int, daiAmount *big.Int, collateralType coinType) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("openLockGemAndDraw", CoinToJoinMap[collateralType], CoinToJoinMap[DAI], CoinToIlkMap[collateralType], collateralAmount, daiAmount)
+
+	if err != nil {
+		return nil
+	}
+	return &Actions{
+		Actions: []action{
+			{
+				handlerAddr:          common.HexToAddress(hMakerDaoAddr),
+				data:                 data,
+				ethersNeeded:         big.NewInt(0),
+				approvalTokens:       []common.Address{CoinToAddressMap[collateralType]},
+				approvalTokenAmounts: []*big.Int{collateralAmount},
+			},
+		},
+	}
+}
+
 // utility------------------------------------------------------------------------
 
 // Approve approves ERC-20 token transfer.
@@ -1444,4 +1563,19 @@ func Approve(client *DefiClient, coin coinType, addr common.Address, size *big.I
 	tx, err := erc20Contract.Approve(opts, addr, size)
 	bind.WaitMined(context.Background(), client.conn, tx)
 	return nil
+}
+
+// Convert string to a fixed length 32 byte.
+func byte32PutString(s string) [32]byte {
+	var res [32]byte
+	decoded, err := hex.DecodeString(s)
+	if err != nil {
+		return res
+	}
+	if len(s) > 32 {
+		copy(res[:], decoded)
+	} else {
+		copy(res[32-len(s):], decoded)
+	}
+	return res
 }

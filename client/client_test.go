@@ -531,3 +531,63 @@ func TestInteractWithFurucomboCurveAddLiquidity(t *testing.T) {
 		t.Errorf("USDC balance not decreasing. %v %v", beforeDAI, afterDAI)
 	}
 }
+
+func TestInteractWithFurucomboMaker(t *testing.T) {
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	collateralAmount := big.NewInt(0)
+	collateralAmount.SetString("2000000000000000000", 10)
+
+	outputAmount := big.NewInt(0)
+	outputAmount.SetString("511000000000000000000", 10)
+	actions.Add(
+		defiClient.Maker().GenerateDaiAction(collateralAmount, outputAmount, ETH),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != -1 {
+		t.Errorf("dai balance not increasing: %v, %v.", beforeDAI, afterDAI)
+	}
+}
+
+func TestInteractWithFurucomboMakerUSDC(t *testing.T) {
+	beforeDAI, err := defiClient.BalanceOf(DAI)
+
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	Approve(defiClient, USDC, common.HexToAddress(ProxyAddr), big.NewInt(1e18))
+	actions := new(Actions)
+
+	collateralAmount := big.NewInt(0)
+	collateralAmount.SetString("1000000000", 10)
+	outputAmount := big.NewInt(0)
+	outputAmount.SetString("520000000000000000000", 10)
+	actions.Add(
+		defiClient.Uniswap().SwapActions(big.NewInt(5e18), USDC, ETH),
+		defiClient.Maker().GenerateDaiAction(collateralAmount, outputAmount, USDC),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != -1 {
+		t.Errorf("dai balance not increasing: %v, %v.", beforeDAI, afterDAI)
+	}
+}
