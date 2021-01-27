@@ -927,8 +927,6 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 				handlerAddr:          common.HexToAddress(hAaveAddr),
 				data:                 flashLoanData,
 				ethersNeeded:         totalEthers,
-				approvalTokens:       approvalTokens,
-				approvalTokenAmounts: approvalAmounts,
 			},
 		},
 	}
