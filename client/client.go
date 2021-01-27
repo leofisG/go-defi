@@ -15,6 +15,8 @@ import (
 	"github.com/524119574/go-defi/binding/hmaker"
 	"github.com/524119574/go-defi/binding/huniswap"
 	"github.com/524119574/go-defi/binding/hyearn"
+	"github.com/524119574/go-defi/binding/hbalancer_exchange"
+
 
 	"github.com/524119574/go-defi/binding/herc20tokenin"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -108,6 +110,8 @@ const (
 	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
 	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
 	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+	hBalancerExchangeAddr string = "0x892dD6ebd2e3E1c0D6592309bA82a0095830D6d6"
+
 	// TODO: The following is not on mainnet yet
 	hSushiswapAddr string = "0xB6F469a8930dd5111c0EA76571c7E86298A171f7"
 	hSwapper       string = "0x017F3f2EB0c55DDF49B95ad38Cd2737ACf64AB4d"
@@ -278,6 +282,9 @@ func (c *DefiClient) SuggestGasPrice(blockNum *big.Int) (*big.Int, error) {
 // ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice.
 func (c *DefiClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
 	handlers, datas, totalEthers, err := c.CombineActions(actions)
+	// log.Printf("%v", datas)
+	// log.Printf("%v", handlers)
+	
 	if err != nil {
 		return err
 	}
@@ -336,6 +343,7 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 					approvalAmounts = append(approvalAmounts, balance)
 				}
 			}
+
 		}
 	}
 
@@ -893,10 +901,17 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 
 // FlashLoanActions create an action to perform Uniswap flashloan.
 func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Actions) *Actions {
-	handlers, datas, totalEthers, err := c.client.CombineActions(actions) 
-	if err != nil {
-		return nil
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	approvalTokens :=  []common.Address{}
+	approvalAmounts := []*big.Int{}
+	for i := 0; i < len(actions.Actions); i++ {	
+		handlers = append(handlers, actions.Actions[i].handlerAddr)	
+		datas = append(datas, actions.Actions[i].data)	
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
 	}
+
 
 	proxy, err := abi.JSON(strings.NewReader(furucombo.FurucomboABI))
 	if err != nil {
@@ -918,6 +933,8 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 				handlerAddr:  common.HexToAddress(hAaveAddr),
 				data:         flashLoanData,
 				ethersNeeded: totalEthers,
+				approvalTokens: approvalTokens,
+				approvalTokenAmounts: approvalAmounts,
 			},
 		},
 	}
@@ -1621,6 +1638,63 @@ func (c *MakerClient) WipeAction(daiAmount *big.Int, cdp *big.Int) *Actions {
 		},
 	}
 }
+
+
+// Balancer-----------------------------------------------------------
+
+// BalancerClient is an instance of Balancer protocol.
+type BalancerClient struct {
+	client *DefiClient
+}
+
+// Balancer creates a new instance of BalancerClient
+func (c *DefiClient) Balancer() *BalancerClient {
+	balancerClient := new(BalancerClient)
+	balancerClient.client = c
+	return balancerClient
+}
+
+
+// Swap swaps on Balancer Exchange
+func (c *BalancerClient) Swap(inputCoin coinType, outputCoin coinType, inputAmount *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hbalancer_exchange.HbalancerExchangeABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("smartSwapExactIn", CoinToAddressMap[inputCoin], CoinToAddressMap[outputCoin], inputAmount, big.NewInt(0), big.NewInt(10))
+
+	if err != nil {
+		return nil
+	}
+
+	if inputCoin == ETH {
+		return &Actions{
+			Actions: []action{
+				{
+					handlerAddr:  common.HexToAddress(hBalancerExchangeAddr),
+					data:         data,
+					ethersNeeded: inputAmount,
+				},
+			},
+		}
+	} else {
+		return &Actions{
+			Actions: []action{
+				{
+					handlerAddr:  common.HexToAddress(hBalancerExchangeAddr),
+					data:         data,
+					ethersNeeded: big.NewInt(0),
+					approvalTokens: []common.Address{CoinToAddressMap[inputCoin]},
+					approvalTokenAmounts: []*big.Int{inputAmount},
+				},
+			},
+		}	
+	}
+
+}
+
+
 
 
 // utility------------------------------------------------------------------------
