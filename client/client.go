@@ -893,7 +893,14 @@ func (c *CompoundClient) redeemActionsERC20(size *big.Int, coin coinType) *Actio
 
 // FlashLoanActions create an action to perform Uniswap flashloan.
 func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Actions) *Actions {
-	handlers, datas, totalEthers, err := c.client.CombineActions(actions) 
+	handlers := []common.Address{}
+	datas := make([][]byte, 0)
+	totalEthers := big.NewInt(0)
+	for i := 0; i < len(actions.Actions); i++ {	
+		handlers = append(handlers, actions.Actions[i].handlerAddr)	
+		datas = append(datas, actions.Actions[i].data)	
+		totalEthers.Add(totalEthers, actions.Actions[i].ethersNeeded)
+	}
 	if err != nil {
 		return nil
 	}
