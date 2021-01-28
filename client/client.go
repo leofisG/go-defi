@@ -758,7 +758,6 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 }
 
 // BalanceOfUnderlying return the balance of given cToken
-// TODO: figure out why is this API so strange? Why is it different from BalanceOf?
 func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction, error) {
 	var (
 		tx  *types.Transaction
