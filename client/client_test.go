@@ -397,7 +397,7 @@ func TestInteractWithFurucomboKyber(t *testing.T) {
 }
 
 func TestInteractWithFurucomboFlashLoanCompound(t *testing.T) {
-	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(2e18))
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(3e18))
 	beforecDAI, err := defiClient.BalanceOf(cDAI)
 	if err != nil {
 		t.Errorf("Error getting DAI balance")
@@ -413,6 +413,7 @@ func TestInteractWithFurucomboFlashLoanCompound(t *testing.T) {
 	)
 
 	actions.Add(
+		// defiClient.SupplyFundActions(big.NewInt(1e18), DAI),
 		defiClient.Aave().FlashLoanActions(
 			big.NewInt(1e18),
 			DAI,
@@ -587,6 +588,32 @@ func TestInteractWithFurucomboMakerUSDC(t *testing.T) {
 	}
 
 	afterDAI, err := defiClient.BalanceOf(DAI)
+	if beforeDAI.Cmp(afterDAI) != -1 {
+		t.Errorf("dai balance not increasing: %v, %v.", beforeDAI, afterDAI)
+	}
+}
+
+func TestInteractWithFurucomboBalancer(t *testing.T) {
+	beforeDAI, err := defiClient.BalanceOf(ETH)
+	Approve(defiClient, DAI, common.HexToAddress(ProxyAddr), big.NewInt(6e18))
+
+	if err != nil {
+		t.Errorf("Error getting DAI balance")
+	}
+
+	actions := new(Actions)
+
+	actions.Add(
+		defiClient.Balancer().Swap(DAI, ETH, big.NewInt(6e18)),
+	)
+
+	err = defiClient.ExecuteActions(actions)
+
+	if err != nil {
+		t.Errorf("Failed to interact with Furucombo: %v", err)
+	}
+
+	afterDAI, err := defiClient.BalanceOf(ETH)
 	if beforeDAI.Cmp(afterDAI) != -1 {
 		t.Errorf("dai balance not increasing: %v, %v.", beforeDAI, afterDAI)
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/524119574/go-defi/binding/haave"
+	"github.com/524119574/go-defi/binding/hbalancer_exchange"
 	"github.com/524119574/go-defi/binding/hcether"
 	"github.com/524119574/go-defi/binding/hctoken"
 	"github.com/524119574/go-defi/binding/hcurve"
@@ -96,18 +97,20 @@ const (
 	// Proxy and Handler related addresses
 
 	// ProxyAddr is the address of the proxy contract.
-	ProxyAddr     string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
-	hCEtherAddr   string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
-	hErcInAddr    string = "0x914490a362f4507058403a99e28bdf685c5c767f"
-	hCTokenAddr   string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
-	hMakerDaoAddr string = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
-	hUniswapAddr  string = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
-	hCurveAddr    string = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
-	hYearnAddr    string = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
-	hAaveAddr     string = "0xf579b009748a62b1978639d6b54259f8dc915229"
-	hOneInch      string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
-	hFunds        string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
-	hKyberAddr    string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+	ProxyAddr             string = "0x57805e5a227937bac2b0fdacaa30413ddac6b8e1"
+	hCEtherAddr           string = "0x9A1049f7f87Dbb0468C745d9B3952e23d5d6CE5e"
+	hErcInAddr            string = "0x914490a362f4507058403a99e28bdf685c5c767f"
+	hCTokenAddr           string = "0x8973D623d883c5641Dd3906625Aac31cdC8790c5"
+	hMakerDaoAddr         string = "0x294fbca49c8a855e04d7d82b28256b086d39afea"
+	hUniswapAddr          string = "0x58a21cfcee675d65d577b251668f7dc46ea9c3a0"
+	hCurveAddr            string = "0xa36dfb057010c419c5917f3d68b4520db3671cdb"
+	hYearnAddr            string = "0xC50C8F34c9955217a6b3e385a069184DCE17fD2A"
+	hAaveAddr             string = "0xf579b009748a62b1978639d6b54259f8dc915229"
+	hOneInch              string = "0x783f5c56e3c8b23d90e4a271d7acbe914bfcd319"
+	hFunds                string = "0xf9b03e9ea64b2311b0221b2854edd6df97669c09"
+	hKyberAddr            string = "0xe2a3431508cd8e72d53a0e4b57c24af2899322a0"
+	hBalancerExchangeAddr string = "0x892dD6ebd2e3E1c0D6592309bA82a0095830D6d6"
+
 	// TODO: The following is not on mainnet yet
 	hSushiswapAddr string = "0xB6F469a8930dd5111c0EA76571c7E86298A171f7"
 	hSwapper       string = "0x017F3f2EB0c55DDF49B95ad38Cd2737ACf64AB4d"
@@ -278,6 +281,7 @@ func (c *DefiClient) SuggestGasPrice(blockNum *big.Int) (*big.Int, error) {
 // ExecuteActionsWithGasPrice sends one transaction for all the Defi interactions with given gasPrice.
 func (c *DefiClient) ExecuteActionsWithGasPrice(actions *Actions, gasPrice *big.Int) error {
 	handlers, datas, totalEthers, err := c.CombineActions(actions)
+
 	if err != nil {
 		return err
 	}
@@ -336,6 +340,7 @@ func (c *DefiClient) CombineActions(actions *Actions) ([]common.Address, [][]byt
 					approvalAmounts = append(approvalAmounts, balance)
 				}
 			}
+
 		}
 	}
 
@@ -753,7 +758,6 @@ func (c *CompoundClient) BalanceOf(coin coinType) (*big.Int, error) {
 }
 
 // BalanceOfUnderlying return the balance of given cToken
-// TODO: figure out why is this API so strange? Why is it different from BalanceOf?
 func (c *CompoundClient) BalanceOfUnderlying(coin coinType) (*types.Transaction, error) {
 	var (
 		tx  *types.Transaction
@@ -919,9 +923,9 @@ func (c *AaveClient) FlashLoanActions(size *big.Int, coin coinType, actions *Act
 	return &Actions{
 		Actions: []action{
 			{
-				handlerAddr:  common.HexToAddress(hAaveAddr),
-				data:         flashLoanData,
-				ethersNeeded: totalEthers,
+				handlerAddr:          common.HexToAddress(hAaveAddr),
+				data:                 flashLoanData,
+				ethersNeeded:         totalEthers,
 			},
 		},
 	}
@@ -1548,13 +1552,12 @@ func (c *MakerClient) generateDaiActionErc20(collateralAmount *big.Int, daiAmoun
 
 // DepositCollateralActions deposits additional collateral to the given vault.
 func (c *MakerClient) DepositCollateralActions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
-	if (collateralType == ETH) {
+	if collateralType == ETH {
 		return c.depositETHActions(collateralAmount, collateralType, cdp)
 	} else {
 		return c.depositERC20Actions(collateralAmount, collateralType, cdp)
 	}
 }
-
 
 func (c *MakerClient) depositETHActions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
@@ -1577,7 +1580,6 @@ func (c *MakerClient) depositETHActions(collateralAmount *big.Int, collateralTyp
 		},
 	}
 }
-
 
 func (c *MakerClient) depositERC20Actions(collateralAmount *big.Int, collateralType coinType, cdp *big.Int) *Actions {
 	parsed, err := abi.JSON(strings.NewReader(hmaker.HmakerABI))
@@ -1618,14 +1620,66 @@ func (c *MakerClient) WipeAction(daiAmount *big.Int, cdp *big.Int) *Actions {
 	return &Actions{
 		Actions: []action{
 			{
-				handlerAddr:          common.HexToAddress(hMakerDaoAddr),
-				data:                 data,
-				ethersNeeded:         big.NewInt(0),
+				handlerAddr:  common.HexToAddress(hMakerDaoAddr),
+				data:         data,
+				ethersNeeded: big.NewInt(0),
 			},
 		},
 	}
 }
 
+// Balancer-----------------------------------------------------------
+
+// BalancerClient is an instance of Balancer protocol.
+type BalancerClient struct {
+	client *DefiClient
+}
+
+// Balancer creates a new instance of BalancerClient
+func (c *DefiClient) Balancer() *BalancerClient {
+	balancerClient := new(BalancerClient)
+	balancerClient.client = c
+	return balancerClient
+}
+
+// Swap swaps on Balancer Exchange
+func (c *BalancerClient) Swap(inputCoin coinType, outputCoin coinType, inputAmount *big.Int) *Actions {
+	parsed, err := abi.JSON(strings.NewReader(hbalancer_exchange.HbalancerExchangeABI))
+	if err != nil {
+		return nil
+	}
+
+	data, err := parsed.Pack("smartSwapExactIn", CoinToAddressMap[inputCoin], CoinToAddressMap[outputCoin], inputAmount, big.NewInt(0), big.NewInt(10))
+
+	if err != nil {
+		return nil
+	}
+
+	if inputCoin == ETH {
+		return &Actions{
+			Actions: []action{
+				{
+					handlerAddr:  common.HexToAddress(hBalancerExchangeAddr),
+					data:         data,
+					ethersNeeded: inputAmount,
+				},
+			},
+		}
+	} else {
+		return &Actions{
+			Actions: []action{
+				{
+					handlerAddr:          common.HexToAddress(hBalancerExchangeAddr),
+					data:                 data,
+					ethersNeeded:         big.NewInt(0),
+					approvalTokens:       []common.Address{CoinToAddressMap[inputCoin]},
+					approvalTokenAmounts: []*big.Int{inputAmount},
+				},
+			},
+		}
+	}
+
+}
 
 // utility------------------------------------------------------------------------
 

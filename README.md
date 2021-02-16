@@ -53,7 +53,7 @@ We then add more `Actions` by calling the `Add` function of the `Actions` struct
 ```go
 actions.Add(
 	defiClient.Compound().SupplyActions(big.NewInt(1e18), client.DAI),
-	defiClient.Uniswap().SwapActions(big.NewInt(1e18), DAI, ETH),
+	defiClient.Uniswap().SwapActions(big.NewInt(1e18), client.DAI, client.ETH),
 )
 ```
 After that we send the `actions` by calling the `ExecuteActions` function:
