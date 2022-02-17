@@ -148,4 +148,4 @@ A more thorough documentation can be found [here](https://godoc.org/github.com/5
 - Arthur Gervais
 
 ## Acknowledgement
-This is project is inspired by [Furucombo](https://furucombo.app/).
+This project is inspired by [Furucombo](https://furucombo.app/).
